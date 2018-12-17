@@ -1,13 +1,18 @@
-# [Lightning Network](https://lightning.network) In-Progress Specifications
+# Lightning Network on MimbleWimble
 
 [![Join the chat at https://gitter.im/lightning-mw/community](https://badges.gitter.im/lightning-mw/community.svg)](https://gitter.im/lightning-mw/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-The specifications are currently a work-in-progress and currently being
-drafted.
+Just like their big brother, these specifications are currently a
+work-in-progress and are still being drafted.
 
-Pull requests and comments welcome, seeking input from community stakeholders.
+Pull requests and comments very welcome, we are seeking input from anyone
+interested in Lightning and/or MimbleWimble.
 
-Discussion available on the [lighting-dev mailing list](https://lists.linuxfoundation.org/mailman/listinfo/lightning-dev).
+We encourage you to follow discussions on the [lighting-dev mailing list](https://lists.linuxfoundation.org/mailman/listinfo/lightning-dev)
+as well as the [MimbleWimble mailing list](https://lists.launchpad.net/mimblewimble/).
+For discussions around this project in particular we created a [Gitter chat](https://gitter.im/lightning-mw/community).
+
+There will probably be some open discussion forum for this project soon.
 
 ### [Start here for Table of Contents](00-introduction.md)
 
