@@ -1,5 +1,7 @@
 # [Lightning Network](https://lightning.network) In-Progress Specifications
 
+[![Join the chat at https://gitter.im/lightning-mw/community](https://badges.gitter.im/lightning-mw/community.svg)](https://gitter.im/lightning-mw/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 The specifications are currently a work-in-progress and currently being
 drafted.
 
