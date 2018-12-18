@@ -1,11 +1,14 @@
-# BOLT #1: Base Protocol
+# BMW #1: Base Protocol
 
 ## Overview
 
-This protocol assumes an underlying authenticated and ordered transport mechanism that takes care of framing individual messages.
-[BOLT #8](08-transport.md) specifies the canonical transport layer used in Lightning, though it can be replaced by any transport that fulfills the above guarantees.
+This protocol assumes an underlying authenticated and ordered transport
+mechanism that takes care of framing individual messages.
+[BMW #8](08-transport.md) specifies the canonical transport layer used
+in Lightning, though it can be replaced by any transport that fulfills the
+above guarantees.
 
-The default TCP port is 9735. This corresponds to hexadecimal `0x2607`: the Unicode code point for LIGHTNING.<sup>[1](#reference-1)</sup>
+The default TCP port is 3112.
 
 All data fields are unsigned big-endian unless otherwise specified.
 
@@ -24,7 +27,8 @@ All data fields are unsigned big-endian unless otherwise specified.
 
 ## Connection Handling and Multiplexing
 
-Implementations MUST use a single connection per peer; channel messages (which include a channel ID) are multiplexed over this single connection.
+Implementations MUST use a single connection per peer; channel messages
+(which include a channel ID) are multiplexed over this single connection.
 
 ## Lightning Message Format
 
@@ -35,8 +39,10 @@ After decryption, all Lightning messages are of the form:
    the message and that conforms to a format matching the `type`
 
 The `type` field indicates how to interpret the `payload` field.
-The format for each individual type is defined by a specification in this repository.
-The type follows the _it's ok to be odd_ rule, so nodes MAY send _odd_-numbered types without ascertaining that the recipient understands it.
+The format for each individual type is defined by a specification in this
+repository.
+The type follows the _it's ok to be odd_ rule, so nodes MAY send _odd_-numbered
+types without ascertaining that the recipient understands it.
 
 A sending node:
   - MUST NOT send an evenly-typed message not listed here without prior negotiation.
@@ -47,17 +53,25 @@ A receiving node:
   - upon receiving a message of _even_, unknown type:
     - MUST fail the channels.
 
-The messages are grouped logically into four groups, ordered by the most significant bit that is set:
+The messages are grouped logically into four groups, ordered by the most
+significant bit that is set:
 
-  - Setup & Control (types `0`-`31`): messages related to connection setup, control, supported features, and error reporting (described below)
-  - Channel (types `32`-`127`): messages used to setup and tear down micropayment channels (described in [BOLT #2](02-peer-protocol.md))
-  - Commitment (types `128`-`255`): messages related to updating the current commitment transaction, which includes adding, revoking, and settling HTLCs as well as updating fees and exchanging signatures (described in [BOLT #2](02-peer-protocol.md))
-  - Routing (types `256`-`511`): messages containing node and channel announcements, as well as any active route exploration (described in [BOLT #7](07-routing-gossip.md))
+  - Setup & Control (types `0`-`31`): messages related to connection setup,
+  control, supported features, and error reporting (described below)
+  - Channel (types `32`-`127`): messages used to setup and tear down
+  micropayment channels (described in [BMW #2](02-peer-protocol.md))
+  - Commitment (types `128`-`255`): messages related to updating the current
+  commitment transaction, which includes adding, revoking, and settling HTLCs
+  as well as updating fees and exchanging signatures (described in [BMW #2](02-peer-protocol.md))
+  - Routing (types `256`-`511`): messages containing node and channel
+  announcements, as well as any active route exploration (described in [BMW #7](07-routing-gossip.md))
 
-The size of the message is required by the transport layer to fit into a 2-byte unsigned int; therefore, the maximum possible size is 65535 bytes.
+The size of the message is required by the transport layer to fit into a 2-byte
+unsigned int; therefore, the maximum possible size is 65535 bytes.
 
 A node:
-  - MUST ignore any additional data within a message beyond the length that it expects for that type.
+  - MUST ignore any additional data within a message beyond the length that it
+  expects for that type.
   - upon receiving a known message with insufficient length for the contents:
     - MUST fail the channels.
   - that negotiates an option in this specification:
@@ -65,9 +79,9 @@ A node:
 
 ### Rationale
 
-By default `SHA2` and Bitcoin public keys are both encoded as
-big endian, thus it would be unusual to use a different endian for
-other fields.
+By default both current MW implementations, Beam and Grin, encode network
+messages using big endian, thus it would be unusual to use a different endian
+for other fields.
 
 Length is limited to 65535 bytes by the cryptographic wrapping, and
 messages in the protocol are never more than that length anyway.
@@ -86,9 +100,13 @@ a buffer with 6-bytes of pre-padding.
 
 ### The `init` Message
 
-Once authentication is complete, the first message reveals the features supported or required by this node, even if this is a reconnection.
+Once authentication is complete, the first message reveals the features
+supported or required by this node, even if this is a reconnection.
 
-[BOLT #9](09-features.md) specifies lists of global and local features. Each feature is generally represented in `globalfeatures` or `localfeatures` by 2 bits. The least-significant bit is numbered 0, which is _even_, and the next most significant bit is numbered 1, which is _odd_.
+[BMW #9](09-features.md) specifies lists of global and local features.
+Each feature is generally represented in `globalfeatures` or `localfeatures`
+by 2 bits. The least-significant bit is numbered 0, which is _even_, and the
+next most significant bit is numbered 1, which is _odd_.
 
 Both fields `globalfeatures` and `localfeatures` MUST be padded to bytes with 0s.
 
@@ -99,19 +117,20 @@ Both fields `globalfeatures` and `localfeatures` MUST be padded to bytes with 0s
    * [`2`:`lflen`]
    * [`lflen`:`localfeatures`]
 
-The 2-byte `gflen` and `lflen` fields indicate the number of bytes in the immediately following field.
+The 2-byte `gflen` and `lflen` fields indicate the number of bytes in the
+immediately following field.
 
 #### Requirements
 
 The sending node:
   - MUST send `init` as the first Lightning message for any connection.
-  - MUST set feature bits as defined in [BOLT #9](09-features.md).
+  - MUST set feature bits as defined in [BMW #9](09-features.md).
   - MUST set any undefined feature bits to 0.
   - SHOULD use the minimum lengths required to represent the feature fields.
 
 The receiving node:
   - MUST wait to receive `init` before sending any other messages.
-  - MUST respond to known feature bits as specified in [BOLT #9](09-features.md).
+  - MUST respond to known feature bits as specified in [BMW #9](09-features.md).
   - upon receiving unknown _odd_ feature bits that are non-zero:
     - MUST ignore the bit.
   - upon receiving unknown _even_ feature bits that are non-zero:
@@ -119,7 +138,9 @@ The receiving node:
 
 #### Rationale
 
-This semantic allows both future incompatible changes and future backward compatible changes. Bits should generally be assigned in pairs, in order that optional features may later become compulsory.
+This semantic allows both future incompatible changes and future backward
+compatible changes. Bits should generally be assigned in pairs, in order that
+optional features may later become compulsory.
 
 Nodes wait for receipt of the other's features to simplify error
 diagnosis when features are incompatible.
@@ -130,7 +151,8 @@ HTLCs and are thus also advertised to other nodes).
 
 ### The `error` Message
 
-For simplicity of diagnosis, it's often useful to tell a peer that something is incorrect.
+For simplicity of diagnosis, it's often useful to tell a peer that something
+is incorrect.
 
 1. type: 17 (`error`)
 2. data:
@@ -138,28 +160,36 @@ For simplicity of diagnosis, it's often useful to tell a peer that something is 
    * [`2`:`len`]
    * [`len`:`data`]
 
-The 2-byte `len` field indicates the number of bytes in the immediately following field.
+The 2-byte `len` field indicates the number of bytes in the immediately
+following field.
 
 #### Requirements
 
-The channel is referred to by `channel_id`, unless `channel_id` is 0 (i.e. all bytes are 0), in which case it refers to all channels.
+The channel is referred to by `channel_id`, unless `channel_id` is 0 (i.e. all
+bytes are 0), in which case it refers to all channels.
 
 The funding node:
-  - for all error messages sent before (and including) the `funding_created` message:
+  - for all error messages sent before (and including) the `funding_created`
+  message:
     - MUST use `temporary_channel_id` in lieu of `channel_id`.
 
 The fundee node:
-  - for all error messages sent before (and not including) the `funding_signed` message:
+  - for all error messages sent before (and not including) the `funding_signed`
+  message:
     - MUST use `temporary_channel_id` in lieu of `channel_id`.
 
 A sending node:
   - when sending `error`:
     - MUST fail the channel referred to by the error message.
-  - SHOULD send `error` for protocol violations or internal errors that make channels unusable or that make further communication unusable.
-  - SHOULD send `error` with the unknown `channel_id` in reply to messages of type `32`-`255` related to unknown channels.
+  - SHOULD send `error` for protocol violations or internal errors that make
+  channels unusable or that make further communication unusable.
+  - SHOULD send `error` with the unknown `channel_id` in reply to messages of
+  type `32`-`255` related to unknown channels.
   - MAY send an empty `data` field.
   - when failure was caused by an invalid signature check:
-    - SHOULD include the raw, hex-encoded transaction in reply to a `funding_created`, `funding_signed`, `closing_signed`, or `commitment_signed` message.
+    - SHOULD include the raw, hex-encoded transaction in reply to a
+    `funding_created`, `funding_signed`, `closing_signed`, or `commitment_signed`
+    message.
   - when `channel_id` is 0:
     - MUST fail all channels with the receiving node.
     - MUST close the connection.
@@ -167,11 +197,13 @@ A sending node:
 
 The receiving node:
   - upon receiving `error`:
-    - MUST fail the channel referred to by the error message, if that channel is with the sending node.
+    - MUST fail the channel referred to by the error message, if that channel is
+    with the sending node.
   - if no existing channel is referred to by the message:
     - MUST ignore the message.
   - MUST truncate `len` to the remainder of the packet (if it's larger).
-  - if `data` is not composed solely of printable ASCII characters (For reference: the printable character set includes byte values 32 through 126, inclusive):
+  - if `data` is not composed solely of printable ASCII characters (For
+  reference: the printable character set includes byte values 32 through 126, inclusive):
     - SHOULD NOT print out `data` verbatim.
 
 #### Rationale
@@ -259,7 +291,7 @@ typical exchanges without applying any true updates to their respective
 channels.
 
 When combined with the onion routing protocol defined in
-[BOLT #4](04-onion-routing.md),
+[BMW #4](04-onion-routing.md),
 careful statistically driven synthetic traffic can serve to further bolster the
 privacy of participants within the network.
 
@@ -269,7 +301,7 @@ of incoming traffic flooding (e.g. sending _odd_ unknown message types, or paddi
 every message maximally).
 
 Finally, the usage of periodic `ping` messages serves to promote frequent key
-rotations as specified within [BOLT #8](08-transport.md).
+rotations as specified within [BMW #8](08-transport.md).
 
 ## Acknowledgments
 
