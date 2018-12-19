@@ -73,7 +73,7 @@ in [BMW #3](03-transactions.md#bolt-3-bitcoin-transaction-and-script-formats).
         |       |                              |       |
         |       |<-(7)---  kernel_created  ----|       |
         |       |--(8)---  kernel_signed  ---->|       |
-        |       |<-(9)---  kernel_signed  -----|       |
+        |       |<-(9)-  funding_completed  ---|       |
         |       |                              |       |
         |       |--(10)-- funding_locked  ---->|       |
         |       |<-(11)-- funding_locked  -----|       |
@@ -330,72 +330,165 @@ The receiver:
 Other fields have the same requirements as their counterparts in `open_channel`.
 
 
+### The `blinding_selected` Message
 
-### The `funding_created` Message
+This message sends the elliptic curve point that corresponds to the blinding factor
+that the fundee has chosen.
 
-This message describes the outpoint which the funder has created for
-the initial commitment transactions. After receiving the peer's
-signature, via `funding_signed`, it will broadcast the funding transaction.
-
-1. type: 34 (`funding_created`)
+1. type: XX (`blinding_selected`)
 2. data:
     * [`32`:`temporary_channel_id`]
-    * [`32`:`funding_txid`]
-    * [`2`:`funding_output_index`]
-    * [`64`:`signature`]
+    * [`32`:`x_coordinate`]
+    * [`2`:`y_parity`]
+
+#### Requirements
+
+The sender MUST set:
+  - `temporary_channel_id` the same as the `temporary_channel_id` in the
+  `open_channel` message.
+  - `x_coordinate` and `y_parity` must be the a generator point scaled by
+  blinding factor the fundee selected.
+
+The recipient:
+  - if the x and y coordinates are not a valid curve point:
+    - MUST fail the channel.
+
+
+### The `commitment_created` Message
+
+This message sends the commitment that the funder has built including her own
+blinding factor.
+
+1. type: XX (`commitment_created`)
+2. data:
+    * [`32`:`temporary_channel_id`]
+    * [`32`:`x_coordinate`]
+    * [`2`:`y_parity`]
+
+#### Requirements
+
+The sender MUST set:
+  - `temporary_channel_id` the same as the `temporary_channel_id` in the
+  `open_channel` message.
+  - `x_coordinate` and `y_parity` must be the a generator point scaled by
+  blinding factor the fundee selected.
+
+The recipient:
+  - if the x and y coordinates are not a valid curve point:
+    - MUST fail the channel.
+
+
+### The `proof_created` Message
+
+This message sends a proof for the funding amount created by the fundee back to
+the funder.
+
+1. type: XX (`proof_created`)
+2. data:
+    * [`32`:`temporary_channel_id`]
+    * [`32`:`proof`]
 
 #### Requirements
 
 The sender MUST set:
   - `temporary_channel_id` the same as the `temporary_channel_id` in the `open_channel` message.
-  - `funding_txid` to the transaction ID of a non-malleable transaction,
-    - and MUST NOT broadcast this transaction.
-  - `funding_output_index` to the output number of that transaction that corresponds the funding transaction output, as defined in [BOLT #3](03-transactions.md#funding-transaction-output).
-  - `signature` to the valid signature using its `funding_pubkey` for the initial commitment transaction, as defined in [BOLT #3](03-transactions.md#commitment-transaction).
-
-The sender:
-  - when creating the funding transaction:
-    - SHOULD use only BIP141 (Segregated Witness) inputs.
 
 The recipient:
-  - if `signature` is incorrect:
+  - if range proof is not valid:
     - MUST fail the channel.
 
-#### Rationale
 
-The `funding_output_index` can only be 2 bytes, since that's how it's packed into the `channel_id` and used throughout the gossip protocol. The limit of 65535 outputs should not be overly burdensome.
+### The `funding_created` Message
 
-A transaction with all Segregated Witness inputs is not malleable, hence the funding transaction recommendation.
+This message acknowledges that the funding transaction is complete, thus
+signalling to the fundee to start the process of creating the transaction
+kernel. She sends along the transaction and a random nonce.
 
-### The `funding_signed` Message
-
-This message gives the funder the signature it needs for the first
-commitment transaction, so it can broadcast the transaction knowing that funds
-can be redeemed, if need be.
-
-This message introduces the `channel_id` to identify the channel. It's derived from the funding transaction by combining the `funding_txid` and the `funding_output_index`, using big-endian exclusive-OR (i.e. `funding_output_index` alters the last 2 bytes).
-
-1. type: 35 (`funding_signed`)
+1. type: XX (`funding_created`)
 2. data:
-    * [`32`:`channel_id`]
-    * [`64`:`signature`]
+    * [`32`:`temporary_channel_id`]
+    * [`32`:`nonce_x_coordinate`]
+    * [`2`:`nonce_y_parity`]
+    * [`32`:`tx_x_coordinate`]
+    * [`2`:`tx_y_parity`]
 
 #### Requirements
 
 The sender MUST set:
-  - `channel_id` by exclusive-OR of the `funding_txid` and the `funding_output_index` from the `funding_created` message.
-  - `signature` to the valid signature, using its `funding_pubkey` for the initial commitment transaction, as defined in [BOLT #3](03-transactions.md#commitment-transaction).
+  - `temporary_channel_id` the same as the `temporary_channel_id` in the `open_channel` message.
+  - `nonce_x_coordinate` and `nonce_y_parity`, as well as `tx_x_coordinate` and `tx_y_parity`
+  must be the generator points scaled by blinding factor the fundee selected.
 
 The recipient:
-  - if `signature` is incorrect:
+  - if the x and y coordinates are not a valid curve point:
     - MUST fail the channel.
-  - MUST NOT broadcast the funding transaction before receipt of a valid `funding_signed`.
-  - on receipt of a valid `funding_signed`:
-    - SHOULD broadcast the funding transaction.
+
+
+### The `kernel_created` Message
+
+The fundee computes her side of the kernel signature including her random nonce
+and sends those values over to the funder.
+
+1. type: XX (`kernel_created`)
+2. data:
+    * [`32`:`temporary_channel_id`]
+    * [`32`:`nonce_x_coordinate`]
+    * [`2`:`nonce_y_parity`]
+    * [`32`:`signature`]
+
+#### Requirements
+
+The sender MUST set:
+  - `temporary_channel_id` the same as the `temporary_channel_id` in the `open_channel` message.
+  - `nonce_x_coordinate` and `nonce_y_parity`
+  must be a generator point scaled by the nonce the funder selected.
+
+The recipient:
+  - if the x and y coordinates are not a valid curve point:
+    - MUST fail the channel.
+
+
+### The `kernel_signed` Message
+
+The funder checks the signature of the fundee and then creates her side of the
+signature.
+
+1. type: XX (`kernel_signed`)
+2. data:
+    * [`32`:`temporary_channel_id`]
+    * [`32`:`signature`]
+
+#### Requirements
+
+The sender MUST set:
+  - `temporary_channel_id` the same as the `temporary_channel_id` in the `open_channel` message.
+
+
+### The `funding_completed` Message
+
+The fundee checks the signature of the funder and then is able to create the
+final signature as well as the final kernel.
+
+1. type: XX (`funding_completed`)
+2. data:
+    * [`32`:`temporary_channel_id`]
+    * [`32`:`final_sig`]
+    * [`32`:`final_kernel`]
+
+#### Requirements
+
+The sender MUST set:
+  - `temporary_channel_id` the same as the `temporary_channel_id` in the `open_channel` message.
 
 ### The `funding_locked` Message
 
-This message indicates that the funding transaction has reached the `minimum_depth` asked for in `accept_channel`. Once both nodes have sent this, the channel enters normal operating mode.
+This message introduces the channel_id to identify the channel.
+
+FIXME: Decide how the channel_id should be derived
+
+This message indicates that the funding transaction has reached the
+`minimum_depth` asked for in `accept_channel`. Once both nodes have
+sent this, the channel enters normal operating mode.
 
 1. type: 36 (`funding_locked`)
 2. data:
@@ -410,7 +503,7 @@ The sender MUST:
   - set `next_per_commitment_point` to the
 per-commitment point to be used for the following commitment
 transaction, derived as specified in
-[BOLT #3](03-transactions.md#per-commitment-secret-requirements).
+[BMW #3](03-transactions.md#per-commitment-secret-requirements).
 
 A non-funding node (fundee):
   - SHOULD forget the channel if it does not see the
@@ -425,12 +518,8 @@ other node after a reasonable timeout.
 The non-funder can simply forget the channel ever existed, since no
 funds are at risk. If the fundee were to remember the channel forever, this
 would create a Denial of Service risk; therefore, forgetting it is recommended
-(even if the promise of `push_msat` is significant).
+(even if the promise of `push_funds` is significant).
 
-#### Future
-
-An SPV proof could be added and block hashes could be routed in separate
-messages.
 
 ## Channel Close
 
