@@ -1,4 +1,4 @@
-# BOLT #2: Peer Protocol for Channel Management
+# BMW #2: Peer Protocol for Channel Management
 
 The peer channel protocol has three phases: establishment, normal
 operation, and closing.
@@ -30,38 +30,53 @@ operation, and closing.
 
 ## Channel Establishment
 
-After authenticating and initializing a connection ([BOLT #8](08-transport.md)
-and [BOLT #1](01-messaging.md#the-init-message), respectively), channel establishment may begin.
+After authenticating and initializing a connection ([BMW #8](08-transport.md)
+and [BMW #1](01-messaging.md#the-init-message), respectively), channel establishment may begin.
 This consists of the funding node (funder) sending an `open_channel` message,
 followed by the responding node (fundee) sending `accept_channel`. With the
 channel parameters locked in, the funder is able to create the funding
-transaction and both versions of the commitment transaction, as described in
-[BOLT #3](03-transactions.md#bolt-3-bitcoin-transaction-and-script-formats).
-The funder then sends the outpoint of the funding output with the `funding_created`
-message, along with the signature for the fundee's version of the commitment
-transaction. Once the fundee learns the funding outpoint, it's able to
-generate the funder's commitment for the commitment transaction and send it
-over using the `funding_signed` message.
+transaction and both versions of the commitment transaction in collaboration
+with the fundee.
 
-Once the channel funder receives the `funding_signed` message, it
-must broadcast the funding transaction to the Bitcoin network. After
-the `funding_signed` message is sent/received, both sides should wait
-for the funding transaction to enter the blockchain and reach the
-specified depth (number of confirmations). After both sides have sent
-the `funding_locked` message, the channel is established and can begin
-normal operation. The `funding_locked` message includes information
-that will be used to construct channel authentication proofs.
+The fundee picks a blinding factor and sends it to the funder with `blinding_selected`.
+The funder builds the commitment using the fundees blinding factor and sends
+it to fundee by sending `commitment_created`. Using the commitment the fundee
+builds a range proof for the funding amount and sends it to the funder as
+`proof_created`. The funder then also creates their own range proof and
+aggregates it with the range proof of the fundee. This completes the multisig
+output which the funder adds to the rest of the outputs of the transaction
+she has created, then sends it to the fundee with `funding_created`.
 
+The fundee start the construction of the kernel by building the message (including
+fee and lock height), the schnorr challenge and their side of the signature and
+sending it all to the funder in `kernel_created`. The funder can check the
+challenge herself and then sends back her side of the signature with the
+`kernel_signed` message. At this point the fundee has the final kernel and
+full signature and can broadcast it to the network. The fundee acknowledges
+this by sending another `kernel_signed` message to the funder. Once both parties
+have observed the transaction on chain they both notify each other using a
+`funding_locked` message. Once both have received a `funding_locked` message
+the channel is operational.
+
+Further details on the construction of proofs and the transaction are described
+in [BMW #3](03-transactions.md#bolt-3-bitcoin-transaction-and-script-formats).
 
         +-------+                              +-------+
         |       |--(1)---  open_channel  ----->|       |
         |       |<-(2)--  accept_channel  -----|       |
         |       |                              |       |
-        |   A   |--(3)--  funding_created  --->|   B   |
-        |       |<-(4)--  funding_signed  -----|       |
+        |       |<-(3)-  blinding_selected  ---|       |
+        |       |--(4)-  commitment_created  ->|       |
         |       |                              |       |
-        |       |--(5)--- funding_locked  ---->|       |
-        |       |<-(6)--- funding_locked  -----|       |
+        |       |<-(5)---  proof_created  -----|       |
+        |   A   |--(6)--  funding_created  --->|   B   |
+        |       |                              |       |
+        |       |<-(7)---  kernel_created  ----|       |
+        |       |--(8)---  kernel_signed  ---->|       |
+        |       |<-(9)---  kernel_signed  -----|       |
+        |       |                              |       |
+        |       |--(10)-- funding_locked  ---->|       |
+        |       |<-(11)-- funding_locked  -----|       |
         +-------+                              +-------+
 
         - where node A is 'funder' and node B is 'fundee'
