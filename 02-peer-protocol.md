@@ -100,24 +100,21 @@ the funding transaction and both versions of the commitment transaction.
 2. data:
    * [`32`:`chain_hash`]
    * [`32`:`temporary_channel_id`]
-   * [`8`:`funding_satoshis`]
-   * [`8`:`push_msat`]
-   * [`8`:`dust_limit_satoshis`]
-   * [`8`:`max_htlc_value_in_flight_msat`]
-   * [`8`:`channel_reserve_satoshis`]
-   * [`8`:`htlc_minimum_msat`]
+   * [`8`:`funding`]
+   * [`8`:`push_funds`]
+   * [`8`:`dust_limit`]
+   * [`8`:`max_htlc_value_in_flight`]
+   * [`8`:`channel_reserve`]
+   * [`8`:`htlc_minimum`]
    * [`4`:`feerate_per_kw`]
    * [`2`:`to_self_delay`]
    * [`2`:`max_accepted_htlcs`]
-   * [`33`:`funding_pubkey`]
    * [`33`:`revocation_basepoint`]
    * [`33`:`payment_basepoint`]
    * [`33`:`delayed_payment_basepoint`]
    * [`33`:`htlc_basepoint`]
    * [`33`:`first_per_commitment_point`]
    * [`1`:`channel_flags`]
-   * [`2`:`shutdown_len`] (`option_upfront_shutdown_script`)
-   * [`shutdown_len`:`shutdown_scriptpubkey`] (`option_upfront_shutdown_script`)
 
 The `chain_hash` value denotes the exact blockchain that the opened channel will
 reside within. This is usually the genesis hash of the respective blockchain.
@@ -129,39 +126,36 @@ The `temporary_channel_id` is used to identify this channel on a per-peer basis 
 funding transaction is established, at which point it is replaced
 by the `channel_id`, which is derived from the funding transaction.
 
-`funding_satoshis` is the amount the sender is putting into the
-channel. `push_msat` is an amount of initial funds that the sender is
-unconditionally giving to the receiver. `dust_limit_satoshis` is the
+`funding` is the amount the sender is putting into the
+channel. `push_funds` is an amount of initial funds that the sender is
+unconditionally giving to the receiver. `dust_limit` is the
 threshold below which outputs should not be generated for this node's
 commitment or HTLC transactions (i.e. HTLCs below this amount plus
 HTLC transaction fees are not enforceable on-chain). This reflects the
 reality that tiny outputs are not considered standard transactions and
-will not propagate through the Bitcoin network. `channel_reserve_satoshis`
+will not propagate through the network. `channel_reserve`
 is the minimum amount that the other node is to keep as a direct
-payment. `htlc_minimum_msat` indicates the smallest value HTLC this
+payment. `htlc_minimum` indicates the smallest value HTLC this
 node will accept.
 
-`max_htlc_value_in_flight_msat` is a cap on total value of outstanding
+`max_htlc_value_in_flight` is a cap on total value of outstanding
 HTLCs, which allows a node to limit its exposure to HTLCs; similarly,
 `max_accepted_htlcs` limits the number of outstanding HTLCs the other
 node can offer.
 
-`feerate_per_kw` indicates the initial fee rate in satoshi per 1000-weight
-(i.e. 1/4 the more normally-used 'satoshi per 1000 vbytes') that this
+`feerate_per_kw` indicates the initial fee rate per 1000-weight
+(i.e. 1/4 the more normally-used 'mw-coin per 1000 vbytes') that this
 side will pay for commitment and HTLC transactions, as described in
-[BOLT #3](03-transactions.md#fee-calculation) (this can be adjusted
+[BMW #3](03-transactions.md#fee-calculation) (this can be adjusted
 later with an `update_fee` message).
 
 `to_self_delay` is the number of blocks that the other node's to-self
-outputs must be delayed, using `OP_CHECKSEQUENCEVERIFY` delays; this
+outputs must be delayed, using timelock delays; this
 is how long it will have to wait in case of breakdown before redeeming
 its own funds.
 
-`funding_pubkey` is the public key in the 2-of-2 multisig script of
-the funding transaction output.
-
 The various `_basepoint` fields are used to derive unique
-keys as described in [BOLT #3](03-transactions.md#key-derivation) for each commitment
+keys as described in [BMW #3](03-transactions.md#key-derivation) for each commitment
 transaction. Varying these keys ensures that the transaction ID of
 each commitment transaction is unpredictable to an external observer,
 even if one commitment transaction is seen; this property is very
@@ -174,35 +168,32 @@ for the first commitment transaction,
 Only the least-significant bit of `channel_flags` is currently
 defined: `announce_channel`. This indicates whether the initiator of
 the funding flow wishes to advertise this channel publicly to the
-network, as detailed within [BOLT #7](07-routing-gossip.md#bolt-7-p2p-node-and-channel-discovery).
-
-The `shutdown_scriptpubkey` allows the sending node to commit to where
-funds will go on mutual close, which the remote node should enforce
-even if a node is compromised later.
-
-[ FIXME: Describe dangerous feature bit for larger channel amounts. ]
+network, as detailed within [BMW #7](07-routing-gossip.md#bolt-7-p2p-node-and-channel-discovery).
 
 #### Requirements
 
 The sending node:
-  - MUST ensure the `chain_hash` value identifies the chain it wishes to open the channel within.
-  - MUST ensure `temporary_channel_id` is unique from any other channel ID with the same peer.
-  - MUST set `funding_satoshis` to less than 2^24 satoshi.
-  - MUST set `push_msat` to equal or less than 1000 * `funding_satoshis`.
-  - MUST set `funding_pubkey`, `revocation_basepoint`, `htlc_basepoint`, `payment_basepoint`, and `delayed_payment_basepoint` to valid DER-encoded, compressed, secp256k1 pubkeys.
-  - MUST set `first_per_commitment_point` to the per-commitment point to be used for the initial commitment transaction, derived as specified in [BOLT #3](03-transactions.md#per-commitment-secret-requirements).
-  - MUST set `channel_reserve_satoshis` greater than or equal to `dust_limit_satoshis`.
+  - MUST ensure the `chain_hash` value identifies the chain it wishes to open
+  the channel within.
+  - MUST ensure `temporary_channel_id` is unique from any other channel ID with
+  the same peer.
+  - MUST set `push_funds` to equal or less than 1000 * `funding`.
+  - MUST set `revocation_basepoint`, `htlc_basepoint`, `payment_basepoint`, and
+  `delayed_payment_basepoint` to valid DER-encoded, compressed, secp256k1 pubkeys.
+  - MUST set `first_per_commitment_point` to the per-commitment point to be used
+  for the initial commitment transaction, derived as specified in [BMW #3](03-transactions.md#per-commitment-secret-requirements).
+  - MUST set `channel_reserve` greater than or equal to `dust_limit`.
   - MUST set undefined bits in `channel_flags` to 0.
-  - if both nodes advertised the `option_upfront_shutdown_script` feature:
-    - MUST include either a valid `shutdown_scriptpubkey` as required by `shutdown` `scriptpubkey`, or a zero-length `shutdown_scriptpubkey`.
-  - otherwise:
-    - MAY include a`shutdown_scriptpubkey`.
 
 The sending node SHOULD:
-  - set `to_self_delay` sufficient to ensure the sender can irreversibly spend a commitment transaction output, in case of misbehavior by the receiver.
-  - set `feerate_per_kw` to at least the rate it estimates would cause the transaction to be immediately included in a block.
-  - set `dust_limit_satoshis` to a sufficient value to allow commitment transactions to propagate through the Bitcoin network.
-  - set `htlc_minimum_msat` to the minimum value HTLC it's willing to accept from this peer.
+  - set `to_self_delay` sufficient to ensure the sender can irreversibly spend
+  a commitment transaction output, in case of misbehavior by the receiver.
+  - set `feerate_per_kw` to at least the rate it estimates would cause the
+  transaction to be immediately included in a block.
+  - set `dust_limit` to a sufficient value to allow commitment transactions
+  to propagate through the Bitcoin network.
+  - set `htlc_minimum` to the minimum value HTLC it's willing to accept from
+  this peer.
 
 The receiving node MUST:
   - ignore undefined bits in `channel_flags`.
@@ -212,50 +203,69 @@ The receiving node MUST:
     - discard the previous `open_channel` message.
 
 The receiving node MAY fail the channel if:
-  - `announce_channel` is `false` (`0`), yet it wishes to publicly announce the channel.
-  - `funding_satoshis` is too small.
-  - it considers `htlc_minimum_msat` too large.
-  - it considers `max_htlc_value_in_flight_msat` too small.
-  - it considers `channel_reserve_satoshis` too large.
+  - `announce_channel` is `false` (`0`), yet it wishes to publicly announce
+  the channel.
+  - `funding` is too small.
+  - it considers `htlc_minimum` too large.
+  - it considers `max_htlc_value_in_flight` too small.
+  - it considers `channel_reserve` too large.
   - it considers `max_accepted_htlcs` too small.
-  - it considers `dust_limit_satoshis` too small and plans to rely on the sending node publishing its commitment transaction in the event of a data loss (see [message-retransmission](02-peer-protocol.md#message-retransmission)).
+  - it considers `dust_limit` too small and plans to rely on the sending node
+  publishing its commitment transaction in the event of a data loss (see [message-retransmission](02-peer-protocol.md#message-retransmission)).
 
 The receiving node MUST fail the channel if:
   - the `chain_hash` value is set to a hash of a chain that is unknown to the receiver.
-  - `push_msat` is greater than `funding_satoshis` * 1000.
+  - `push_funds` is greater than `funding` * 1000.
   - `to_self_delay` is unreasonably large.
   - `max_accepted_htlcs` is greater than 483.
   - it considers `feerate_per_kw` too small for timely processing or unreasonably large.
-  - `funding_pubkey`, `revocation_basepoint`, `htlc_basepoint`, `payment_basepoint`, or `delayed_payment_basepoint`
+  - `revocation_basepoint`, `htlc_basepoint`, `payment_basepoint`, or `delayed_payment_basepoint`
 are not valid DER-encoded compressed secp256k1 pubkeys.
-  - `dust_limit_satoshis` is greater than `channel_reserve_satoshis`.
-  - the funder's amount for the initial commitment transaction is not sufficient for full [fee payment](03-transactions.md#fee-payment).
-  - both `to_local` and `to_remote` amounts for the initial commitment transaction are less than or equal to `channel_reserve_satoshis` (see [BOLT 3](03-transactions.md#commitment-transaction-outputs)).
+  - `dust_limit` is greater than `channel_reserve`.
+  - the funder's amount for the initial commitment transaction is not sufficient
+  for full [fee payment](03-transactions.md#fee-payment).
+  - both `to_local` and `to_remote` amounts for the initial commitment
+  transaction are less than or equal to `channel_reserve` (see [BMW #3](03-transactions.md#commitment-transaction-outputs)).
 
 The receiving node MUST NOT:
-  - consider funds received, using `push_msat`, to be received until the funding transaction has reached sufficient depth.
+  - consider funds received, using `push_funds`, to be received until the
+  funding transaction has reached sufficient depth.
 
 #### Rationale
 
-The requirement for `funding_satoshi` to be less than 2^24 satoshi is a temporary self-imposed limit while implementations are not yet considered stable.
-It can be lifted at any point in time, or adjusted for other currencies, since it is solely enforced by the endpoints of a channel.
-Specifically, [the routing gossip protocol](07-routing-gossip.md) does not discard channels that have a larger capacity.
+The *channel reserve* is specified by the peer's `channel_reserve`: 1% of the
+channel total is suggested. Each side of a channel maintains this reserve so
+it always has something to lose if it were to try to broadcast an old, revoked
+commitment transaction. Initially, this reserve may not be met, as only one
+side has funds; but the protocol ensures that there is always progress toward
+meeting this reserve, and once met, it is maintained.
 
-The *channel reserve* is specified by the peer's `channel_reserve_satoshis`: 1% of the channel total is suggested. Each side of a channel maintains this reserve so it always has something to lose if it were to try to broadcast an old, revoked commitment transaction. Initially, this reserve may not be met, as only one side has funds; but the protocol ensures that there is always progress toward meeting this reserve, and once met, it is maintained.
+The sender can unconditionally give initial funds to the receiver using a
+non-zero `push_funding`, but even in this case we ensure that the funder has
+sufficient remaining funds to pay fees and that one side has some amount it
+can spend (which also implies there is at least one non-dust output). Note that,
+like any other on-chain transaction, this payment is not certain until the
+funding transaction has been confirmed sufficiently (with a danger of
+double-spend until this occurs) and may require a separate method to prove
+payment via on-chain confirmation.
 
-The sender can unconditionally give initial funds to the receiver using a non-zero `push_msat`, but even in this case we ensure that the funder has sufficient remaining funds to pay fees and that one side has some amount it can spend (which also implies there is at least one non-dust output). Note that, like any other on-chain transaction, this payment is not certain until the funding transaction has been confirmed sufficiently (with a danger of double-spend until this occurs) and may require a separate method to prove payment via on-chain confirmation.
+The `feerate_per_kw` is generally only of concern to the sender (who pays the
+fees), but there is also the fee rate paid by HTLC transactions; thus,
+unreasonably large fee rates can also penalize the recipient.
 
-The `feerate_per_kw` is generally only of concern to the sender (who pays the fees), but there is also the fee rate paid by HTLC transactions; thus, unreasonably large fee rates can also penalize the recipient.
+Separating the `htlc_basepoint` from the `payment_basepoint` improves security:
+a node needs the secret associated with the `htlc_basepoint` to produce HTLC
+signatures for the protocol, but the secret for the `payment_basepoint` can be
+in cold storage.
 
-Separating the `htlc_basepoint` from the `payment_basepoint` improves security: a node needs the secret associated with the `htlc_basepoint` to produce HTLC signatures for the protocol, but the secret for the `payment_basepoint` can be in cold storage.
-
-The requirement that `channel_reserve_satoshis` is not considered dust
+The requirement that `channel_reserve` is not considered dust
 according to `dust_limit_satoshis` eliminates cases where all outputs
 would be eliminated as dust.  The similar requirements in
-`accept_channel` ensure that both sides' `channel_reserve_satoshis`
-are above both `dust_limit_satoshis`.
+`accept_channel` ensure that both sides' `channel_reserve`
+are above both `dust_limit`.
 
-Details for how to handle a channel failure can be found in [BOLT 5:Failing a Channel](05-onchain.md#failing-a-channel).
+Details for how to handle a channel failure can be found in
+[BMW #5:Failing a Channel](05-onchain.md#failing-a-channel).
 
 #### Practical Considerations for temporary_channel_id
 
@@ -284,21 +294,18 @@ funding transaction and both versions of the commitment transaction.
 1. type: 33 (`accept_channel`)
 2. data:
    * [`32`:`temporary_channel_id`]
-   * [`8`:`dust_limit_satoshis`]
-   * [`8`:`max_htlc_value_in_flight_msat`]
-   * [`8`:`channel_reserve_satoshis`]
-   * [`8`:`htlc_minimum_msat`]
+   * [`8`:`dust_limit`]
+   * [`8`:`max_htlc_value_in_flight`]
+   * [`8`:`channel_reserve`]
+   * [`8`:`htlc_minimum`]
    * [`4`:`minimum_depth`]
    * [`2`:`to_self_delay`]
    * [`2`:`max_accepted_htlcs`]
-   * [`33`:`funding_pubkey`]
    * [`33`:`revocation_basepoint`]
    * [`33`:`payment_basepoint`]
    * [`33`:`delayed_payment_basepoint`]
    * [`33`:`htlc_basepoint`]
    * [`33`:`first_per_commitment_point`]
-   * [`2`:`shutdown_len`] (`option_upfront_shutdown_script`)
-   * [`shutdown_len`:`shutdown_scriptpubkey`] (`option_upfront_shutdown_script`)
 
 #### Requirements
 
@@ -308,17 +315,21 @@ the `open_channel` message.
 The sender:
   - SHOULD set `minimum_depth` to a number of blocks it considers reasonable to
 avoid double-spending of the funding transaction.
-  - MUST set `channel_reserve_satoshis` greater than or equal to `dust_limit_satoshis` from the `open_channel` message.
-  - MUST set `dust_limit_satoshis` less than or equal to `channel_reserve_satoshis` from the `open_channel` message.
+  - MUST set `channel_reserve` greater than or equal to `dust_limit` from the
+  `open_channel` message.
+  - MUST set `dust_limit` less than or equal to `channel_reserve` from the
+  `open_channel` message.
 
 The receiver:
   - if `minimum_depth` is unreasonably large:
     - MAY reject the channel.
-  - if `channel_reserve_satoshis` is less than `dust_limit_satoshis` within the `open_channel` message:
+  - if `channel_reserve` is less than `dust_limit` within the `open_channel` message:
 	- MUST reject the channel.
-  - if `channel_reserve_satoshis` from the `open_channel` message is less than `dust_limit_satoshis`:
+  - if `channel_reserve` from the `open_channel` message is less than `dust_limit`:
 	- MUST reject the channel.
 Other fields have the same requirements as their counterparts in `open_channel`.
+
+
 
 ### The `funding_created` Message
 
