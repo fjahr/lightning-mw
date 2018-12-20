@@ -536,25 +536,29 @@ Closing happens in two stages:
         |       |<-(2)-----  shutdown  --------|       |
         |       |                              |       |
         |       | <complete all pending HTLCs> |       |
-        |   A   |                 ...          |   B   |
+        |       |                 ...          |       |
         |       |                              |       |
-        |       |--(3)-- closing_signed  F1--->|       |
-        |       |<-(4)-- closing_signed  F2----|       |
-        |       |              ...             |       |
-        |       |--(?)-- closing_signed  Fn--->|       |
-        |       |<-(?)-- closing_signed  Fn----|       |
+        |       |--(3)--- closing_fee   F1---->|       |
+        |       |<-(4)--- closing_fee   F2-----|       |
+        |   A   |              ...             |   B   |
+        |       |--(?)--- closing_fee   Fn---->|       |
+        |       |<-(?)--- closing_fee   Fn-----|       |
+        |       |                              |       |
+        |       |--(5)--  partial_closing  --->|       |
+        |       |<-(6)----  full_closing  -----|       |
+        |       |                              |       |
+        |       |--(7)--  closing_signed  ---->|       |
+        |       |<-(8)--  closing_complete  ---|       |
         +-------+                              +-------+
 
 ### Closing Initiation: `shutdown`
 
-Either node (or both) can send a `shutdown` message to initiate closing,
-along with the `scriptpubkey` it wants to be paid to.
+Either node (or both) can send a `shutdown` message to initiate closing. This
+means the node will not accept any new HTLCs from this point forward.
 
 1. type: 38 (`shutdown`)
 2. data:
    * [`32`:`channel_id`]
-   * [`2`:`len`]
-   * [`len`:`scriptpubkey`]
 
 #### Requirements
 
@@ -566,29 +570,16 @@ A sending node:
     - MUST NOT send a `shutdown`.
   - MUST NOT send an `update_add_htlc` after a `shutdown`.
   - if no HTLCs remain in either commitment transaction:
-	- MUST NOT send any `update` message after a `shutdown`.
+  - MUST NOT send any `update` message after a `shutdown`.
   - SHOULD fail to route any HTLC added after it has sent `shutdown`.
-  - if it sent a non-zero-length `shutdown_scriptpubkey` in `open_channel` or `accept_channel`:
-    - MUST send the same value in `scriptpubkey`.
-  - MUST set `scriptpubkey` in one of the following forms:
-
-    1. `OP_DUP` `OP_HASH160` `20` 20-bytes `OP_EQUALVERIFY` `OP_CHECKSIG`
-   (pay to pubkey hash), OR
-    2. `OP_HASH160` `20` 20-bytes `OP_EQUAL` (pay to script hash), OR
-    3. `OP_0` `20` 20-bytes (version 0 pay to witness pubkey), OR
-    4. `OP_0` `32` 32-bytes (version 0 pay to witness script hash)
 
 A receiving node:
   - if it hasn't received a `funding_signed` (if it is a funder) or a `funding_created` (if it is a fundee):
     - SHOULD fail the connection
-  - if the `scriptpubkey` is not in one of the above forms:
-    - SHOULD fail the connection.
   - if it hasn't sent a `funding_locked` yet:
     - MAY reply to a `shutdown` message with a `shutdown`
   - once there are no outstanding updates on the peer, UNLESS it has already sent a `shutdown`:
     - MUST reply to a `shutdown` message with a `shutdown`
-  - if both nodes advertised the `option_upfront_shutdown_script` feature, and the receiving node received a non-zero-length `shutdown_scriptpubkey` in `open_channel` or `accept_channel`, and that `shutdown_scriptpubkey` is not equal to `scriptpubkey`:
-    - MUST fail the connection.
 
 #### Rationale
 
@@ -597,86 +588,204 @@ shutdown starts, the question of how to behave if it wasn't is avoided:
 the sender always sends a `commitment_signed` first.
 
 As shutdown implies a desire to terminate, it implies that no new
-HTLCs will be added or accepted.  Once any HTLCs are cleared, the peer
+HTLCs will be added or accepted. Once any HTLCs are cleared, the peer
 may immediately begin closing negotiation, so we ban further updates
 to the commitment transaction (in particular, `update_fee` would be
 possible otherwise).
 
-The `scriptpubkey` forms include only standard forms accepted by the
-Bitcoin network, which ensures the resulting transaction will
-propagate to miners.
+The `shutdown` response requirement implies that the node sends
+`commitment_signed` to commit any outstanding changes before replying; however,
+it could theoretically reconnect instead, which would simply erase all
+outstanding uncommitted changes.
 
-The `option_upfront_shutdown_script` feature means that the node
-wanted to pre-commit to `shutdown_scriptpubkey` in case it was
-compromised somehow.  This is a weak commitment (a malevolent
-implementation tends to ignore specifications like this one!), but it
-provides an incremental improvement in security by requiring the cooperation
-of the receiving node to change the `scriptpubkey`.
 
-The `shutdown` response requirement implies that the node sends `commitment_signed` to commit any outstanding changes before replying; however, it could theoretically reconnect instead, which would simply erase all outstanding uncommitted changes.
-
-### Closing Negotiation: `closing_signed`
+### Closing Negotiation: `closing_fee`
 
 Once shutdown is complete and the channel is empty of HTLCs, the final
 current commitment transactions will have no HTLCs, and closing fee
-negotiation begins.  The funder chooses a fee it thinks is fair, and
-signs the close transaction with the `scriptpubkey` fields from the
-`shutdown` messages (along with its chosen fee) and sends the signature;
-the other node then replies similarly, using a fee it thinks is fair.  This
-exchange continues until both agree on the same fee or when one side fails
-the channel.
+negotiation begins.  The funder chooses a fee it thinks is fair, and sends
+the suggestion in a `closing_fee` message. The other node then replies similarly,
+using a fee it thinks is fair.  This exchange continues until both agree on the
+same fee or when one side fails the channel.
 
-1. type: 39 (`closing_signed`)
+1. type: 39 (`closing_fee`)
 2. data:
    * [`32`:`channel_id`]
-   * [`8`:`fee_satoshis`]
-   * [`64`:`signature`]
+   * [`8`:`fee`]
 
 #### Requirements
 
 The funding node:
   - after `shutdown` has been received, AND no HTLCs remain in either commitment transaction:
-    - SHOULD send a `closing_signed` message.
+    - SHOULD send a `closing_fee` message.
 
 The sending node:
-  - MUST set `fee_satoshis` less than or equal to the
- base fee of the final commitment transaction, as calculated in [BOLT #3](03-transactions.md#fee-calculation).
-  - SHOULD set the initial `fee_satoshis` according to its
+  - MUST set `fee` less than or equal to the
+ base fee of the final commitment transaction, as calculated in [BMW #3](03-transactions.md#fee-calculation).
+  - SHOULD set the initial `fee` according to its
  estimate of cost of inclusion in a block.
-  - MUST set `signature` to the Bitcoin signature of the close
- transaction, as specified in [BOLT #3](03-transactions.md#closing-transaction).
 
 The receiving node:
-  - if the `signature` is not valid for either variant of close transaction
-  specified in [BOLT #3](03-transactions.md#closing-transaction):
-    - MUST fail the connection.
-  - if `fee_satoshis` is equal to its previously sent `fee_satoshis`:
-    - SHOULD sign and broadcast the final closing transaction.
-    - MAY close the connection.
-  - otherwise, if `fee_satoshis` is greater than
+  - if `fee` is equal to its previously sent `fee`:
+    - SHOULD continue to build the closing transaction.
+  - otherwise, if `fee` is greater than
 the base fee of the final commitment transaction as calculated in
-[BOLT #3](03-transactions.md#fee-calculation):
+[BMW #3](03-transactions.md#fee-calculation):
     - MUST fail the connection.
-  - if `fee_satoshis` is not strictly
-between its last-sent `fee_satoshis` and its previously-received
-`fee_satoshis`, UNLESS it has since reconnected:
+  - if `fee` is not strictly
+between its last-sent `fee` and its previously-received
+`fee`, UNLESS it has since reconnected:
     - SHOULD fail the connection.
   - if the receiver agrees with the fee:
-    - SHOULD reply with a `closing_signed` with the same `fee_satoshis` value.
+    - SHOULD reply with a `closing_fee` with the same `fee` value.
   - otherwise:
-    - MUST propose a value "strictly between" the received `fee_satoshis`
-  and its previously-sent `fee_satoshis`.
+    - MUST propose a value "strictly between" the received `fee`
+  and its previously-sent `fee`.
 
 #### Rationale
 
 The "strictly between" requirement ensures that forward
-progress is made, even if only by a single satoshi at a time. To avoid
+progress is made, even if only by small increments at a time. To avoid
 keeping state and to handle the corner case, where fees have shifted
 between disconnection and reconnection, negotiation restarts on reconnection.
 
 Note there is limited risk if the closing transaction is
 delayed, but it will be broadcast very soon; so there is usually no
 reason to pay a premium for rapid processing.
+
+### The `partial_closing` Message
+
+The initiator or the channel closing constructs her part of the transaction
+and the partial transaction along with a random nonce and her blinding
+factor.
+
+1. type: XX (`partial_closing`)
+2. data:
+    * [`32`:`channel_id`]
+    * [`32`:`nonce_x_coordinate`]
+    * [`2`:`nonce_y_parity`]
+    * [`32`:`blinding_x_coordinate`]
+    * [`2`:`blinding_y_parity`]
+
+#### Requirements
+
+The sender MUST set:
+  - `nonce_x_coordinate` and `nonce_y_parity`, as well as `blinding_x_coordinate` and `blinding_y_parity`
+  must be the generator points scaled by blinding factor the fundee selected.
+
+The recipient:
+  - if the x and y coordinates are not a valid curve point:
+    - MUST fail the channel.
+
+
+### The `full_closing` Message
+
+The taker of the closing chooses a random nonce and a blinding factor for her
+output as well and sends it along with her partial signature for the transaction.
+
+1. type: XX (`full_closing`)
+2. data:
+    * [`32`:`channel_id`]
+    * [`32`:`nonce_x_coordinate`]
+    * [`2`:`nonce_y_parity`]
+    * [`32`:`blinding_x_coordinate`]
+    * [`2`:`blinding_y_parity`]
+    * [`32`:`signature`]
+
+#### Requirements
+
+The sender MUST set:
+  - `nonce_x_coordinate` and `nonce_y_parity` as well as `blinding_x_coordinate`
+  and `blinding_y_coordinate` must be a generator point scaled by the nonce the
+  funder selected.
+
+The recipient:
+  - if the x and y coordinates are not a valid curve point:
+    - MUST fail the channel.
+
+### The `closing_signed` Message
+
+Using the data received from the taker, the initiator can create her side of the
+signature and sends it over to the taker.
+
+1. type: XX (`closing_signed`)
+2. data:
+    * [`32`:`channel_id`]
+    * [`32`:`signature`]
+
+
+### The `closing_complete` Message
+
+The taker now has all the data and can complete the full closing transaction
+which she sends to the initiator as well as broadcasting it to the network.
+
+1. type: XX (`closing_completed`)
+2. data:
+    * [`32`:`channel_id`]
+    * [`32`:`final_sig`]
+    * [`32`:`final_kernel`]
+
+#### Requirements
+
+The sender MUST set:
+  - `temporary_channel_id` the same as the `temporary_channel_id` in the `open_channel` message.
+
+
+### The `closing_complete` Message
+
+This message introduces the channel_id to identify the channel.
+
+FIXME: Decide how the channel_id should be derived
+
+This message indicates that the funding transaction has reached the
+`minimum_depth` asked for in `accept_channel`. Once both nodes have
+sent this, the channel enters normal operating mode.
+
+1. type: 36 (`funding_locked`)
+2. data:
+    * [`32`:`channel_id`]
+    * [`33`:`next_per_commitment_point`]
+
+#### Requirements
+
+The sender MUST:
+  - wait until the funding transaction has reached
+`minimum_depth` before sending this message.
+  - set `next_per_commitment_point` to the
+per-commitment point to be used for the following commitment
+transaction, derived as specified in
+[BMW #3](03-transactions.md#per-commitment-secret-requirements).
+
+A non-funding node (fundee):
+  - SHOULD forget the channel if it does not see the
+funding transaction after a reasonable timeout.
+
+From the point of waiting for `funding_locked` onward, either node MAY
+fail the channel if it does not receive a required response from the
+other node after a reasonable timeout.
+
+#### Rationale
+
+The non-funder can simply forget the channel ever existed, since no
+funds are at risk. If the fundee were to remember the channel forever, this
+would create a Denial of Service risk; therefore, forgetting it is recommended
+(even if the promise of `push_funds` is significant).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## Normal Operation
 
