@@ -1,4 +1,4 @@
-# BOLT #4: Onion Routing Protocol
+# BMW #4: Onion Routing Protocol
 
 ## Overview
 
@@ -101,7 +101,9 @@ There are a number of conventions adhered to throughout this document:
 
 # Clarifications
 
-The longest route supported has 20 hops without counting the _origin node_ and _final node_, thus 19 _intermediate nodes_ and a maximum of 20 channels to be traversed.
+The longest route supported has 20 hops without counting the _origin node_
+and _final node_, thus 19 _intermediate nodes_ and a maximum of 20 channels to
+be traversed.
 
 # Key Generation
 
@@ -194,9 +196,7 @@ under the packet-wide HMAC, the information it contains is fully authenticated
 with each pair-wise relationship between the HTLC sender (origin node) and each
 hop in the path.
 
-Using this end-to-end authentication,
-each
-hop is able to
+Using this end-to-end authentication, each hop is able to
 cross-check the HTLC parameters with the `per_hop`'s specified values
 and to ensure that the sending peer hasn't forwarded an
 ill-crafted HTLC.
@@ -206,7 +206,7 @@ Field descriptions:
    * `short_channel_id`: The ID of the outgoing channel used to route the 
       message; the receiving peer should operate the other end of this channel.
 
-   * `amt_to_forward`: The amount, in millisatoshis, to forward to the next
+   * `amt_to_forward`: The amount to forward to the next
      receiving peer specified within the routing information.
 
      This value amount MUST include the origin node's computed _fee_ for the
@@ -218,7 +218,7 @@ Field descriptions:
         incoming_htlc_amt - fee >= amt_to_forward
 
      Where `fee` is either calculated according to the receiving peer's advertised fee
-     schema (as described in [BOLT #7](07-routing-gossip.md#htlc-fees))
+     schema (as described in [BMW #7](07-routing-gossip.md#htlc-fees))
      or is 0, if the processing node is the final node.
 
    * `outgoing_cltv_value`: The CLTV value that the _outgoing_ HTLC carrying
@@ -261,7 +261,7 @@ sent across.
 
 Nodes implementing non-strict forwarding are able to make real-time assessments
 of channel bandwidths with a particular peer, and use the channel that is
-locally-optimal. 
+locally-optimal.
 
 For example, if the channel specified by `short_channel_id` connecting A and B
 does not have enough bandwidth at forwarding time, then A is able use a
@@ -766,16 +766,16 @@ leading from the processing node.
 
 1. type: UPDATE|11 (`amount_below_minimum`)
 2. data:
-   * [`8`:`htlc_msat`]
+   * [`8`:`htlc_amount`]
    * [`2`:`len`]
    * [`len`:`channel_update`]
 
-The HTLC amount was below the `htlc_minimum_msat` of the channel from
+The HTLC amount was below the `htlc_minimum` of the channel from
 the processing node.
 
 1. type: UPDATE|12 (`fee_insufficient`)
 2. data:
-   * [`8`:`htlc_msat`]
+   * [`8`:`htlc_amount`]
    * [`2`:`len`]
    * [`len`:`channel_update`]
 
@@ -804,7 +804,7 @@ handling by the processing node.
 
 1. type: PERM|15 (`incorrect_or_unknown_payment_details`)
 2. data:
-   * [`8`:`htlc_msat`]
+   * [`8`:`htlc_amount`]
 
 The `payment_hash` is unknown to the final node or the amount for that
 `payment_hash` is incorrect.
