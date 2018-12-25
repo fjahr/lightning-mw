@@ -1,17 +1,21 @@
 # BOLT #7: P2P Node and Channel Discovery
 
-This specification describes simple node discovery, channel discovery, and channel update mechanisms that do not rely on a third-party to disseminate the information.
+This specification describes simple node discovery, channel discovery, and
+channel update mechanisms that do not rely on a third-party to disseminate
+the information.
 
 Node and channel discovery serve two different purposes:
 
- - Channel discovery allows the creation and maintenance of a local view of the network's topology, so that a node can discover routes to desired destinations.
- - Node discovery allows nodes to broadcast their ID, host, and port, so that other nodes can open connections and establish payment channels with them.
+ - Channel discovery allows the creation and maintenance of a local view of
+ the network's topology, so that a node can discover routes to desired destinations.
+ - Node discovery allows nodes to broadcast their ID, host, and port, so that
+ other nodes can open connections and establish payment channels with them.
 
-To support channel discovery, three *gossip messages* are supported.   Peers in the network exchange
-`channel_announcement` messages containing information regarding new
-channels between the two nodes. They can also exchange `channel_update`
-messages, which update information about a channel. There can only be
-one valid `channel_announcement` for any channel, but at least two
+To support channel discovery, three *gossip messages* are supported. Peers in
+the network exchange `channel_announcement` messages containing information
+regarding new channels between the two nodes. They can also exchange
+`channel_update` messages, which update information about a channel. There can
+only be one valid `channel_announcement` for any channel, but at least two
 `channel_update` messages are expected.
 
 To support node discovery, peers exchange `node_announcement`
@@ -34,28 +38,36 @@ multiple `node_announcement` messages, in order to update the node information.
 
 ## The `announcement_signatures` Message
 
-This is a direct message between the two endpoints of a channel and serves as an opt-in mechanism to allow the announcement of the channel to the rest of the network.
-It contains the necessary signatures, by the sender, to construct the `channel_announcement` message.
+This is a direct message between the two endpoints of a channel and serves as an
+opt-in mechanism to allow the announcement of the channel to the rest of the network.
+It contains the necessary signatures, by the sender, to construct the
+`channel_announcement` message.
 
 1. type: 259 (`announcement_signatures`)
 2. data:
     * [`32`:`channel_id`]
     * [`8`:`short_channel_id`]
     * [`64`:`node_signature`]
-    * [`64`:`bitcoin_signature`]
+    * [`64`:`chain_signature`]
 
-The willingness of the initiating node to announce the channel is signaled during channel opening by setting the `announce_channel` bit in `channel_flags` (see [BOLT #2](02-peer-protocol.md#the-open_channel-message)).
+The willingness of the initiating node to announce the channel is signaled during
+channel opening by setting the `announce_channel` bit in `channel_flags`
+(see [BMW #2](02-peer-protocol.md#the-open_channel-message)).
 
 ### Requirements
 
-The `announcement_signatures` message is created by constructing a `channel_announcement` message, corresponding to the newly established channel, and signing it with the secrets matching an endpoint's `node_id` and `bitcoin_key`. After it's signed, the
-`announcement_signatures` message may be sent.
+The `announcement_signatures` message is created by constructing a
+`channel_announcement` message, corresponding to the newly established channel,
+and signing it with the secrets matching an endpoint's `node_id` and
+`chain_key`. After it's signed, the `announcement_signatures` message may be sent.
 
 The `short_channel_id` is the unique description of the funding transaction.
 It is constructed as follows:
   1. the most significant 3 bytes: indicating the block height
   2. the next 3 bytes: indicating the transaction index within the block
   3. the least significant 2 bytes: indicating the output index that pays to the channel.
+
+FIXME: Define different logic for generating `short_channel_id`
 
 The standard human readable format for `short_channel_id` is created
 by printing the above components, in the order:
@@ -80,7 +92,7 @@ A node:
       - SHOULD retransmit the `announcement_signatures` message.
 
 A recipient node:
-  - if the `node_signature` OR the `bitcoin_signature` is NOT correct:
+  - if the `node_signature` OR the `chain_signature` is NOT correct:
     - MAY fail the channel.
   - if it has sent AND received a valid `announcement_signatures` message:
     - SHOULD queue the `channel_announcement` message for its peers.
@@ -118,19 +130,19 @@ its fee levels and expiry, using `channel_update`.
 
 Proving the existence of a channel between `node_1` and `node_2` requires:
 
-1. proving that the funding transaction pays to `bitcoin_key_1` and
-   `bitcoin_key_2`
-2. proving that `node_1` owns `bitcoin_key_1`
-3. proving that `node_2` owns `bitcoin_key_2`
+1. proving that the funding transaction pays to `chain_key_1` and
+   `chain_key_2`
+2. proving that `node_1` owns `chain_key_1`
+3. proving that `node_2` owns `chain_key_2`
 
 Assuming that all nodes know the unspent transaction outputs, the first proof is
 accomplished by a node finding the output given by the `short_channel_id` and
-verifying that it is indeed a P2WSH funding transaction output for those keys
-specified in [BOLT #3](03-transactions.md#funding-transaction-output).
+verifying that it is indeed a funding transaction output for those keys
+specified in [BMW #3](03-transactions.md#funding-transaction-output).
 
 The last two proofs are accomplished through explicit signatures:
-`bitcoin_signature_1` and `bitcoin_signature_2` are generated for each
-`bitcoin_key` and each of the corresponding `node_id`s are signed.
+`chain_signature_1` and `chain_signature_2` are generated for each
+`chain_key` and each of the corresponding `node_id`s are signed.
 
 It's also necessary to prove that `node_1` and `node_2` both agree on the
 announcement message: this is accomplished by having a signature from each
@@ -140,31 +152,30 @@ announcement message: this is accomplished by having a signature from each
 2. data:
     * [`64`:`node_signature_1`]
     * [`64`:`node_signature_2`]
-    * [`64`:`bitcoin_signature_1`]
-    * [`64`:`bitcoin_signature_2`]
+    * [`64`:`chain_signature_1`]
+    * [`64`:`chain_signature_2`]
     * [`2`:`len`]
     * [`len`:`features`]
     * [`32`:`chain_hash`]
     * [`8`:`short_channel_id`]
     * [`33`:`node_id_1`]
     * [`33`:`node_id_2`]
-    * [`33`:`bitcoin_key_1`]
-    * [`33`:`bitcoin_key_2`]
+    * [`33`:`chain_key_1`]
+    * [`33`:`chain_key_2`]
 
 ### Requirements
 
 The origin node:
   - MUST set `chain_hash` to the 32-byte hash that uniquely identifies the chain
-  that the channel was opened within:
-    - for the _Bitcoin blockchain_:
-      - MUST set `chain_hash` value (encoded in hex) equal to `6fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000`.
+  that the channel was opened within.
   - MUST set `short_channel_id` to refer to the confirmed funding transaction,
-  as specified in [BOLT #2](02-peer-protocol.md#the-funding_locked-message).
-    - Note: the corresponding output MUST be a P2WSH, as described in [BOLT #3](03-transactions.md#funding-transaction-output).
+  as specified in [BMW #2](02-peer-protocol.md#the-funding_locked-message).
+    - Note: the corresponding output MUST be a P2WSH, as described in
+    [BMW #3](03-transactions.md#funding-transaction-output).
   - MUST set `node_id_1` and `node_id_2` to the public keys of the two nodes
   operating the channel, such that `node_id_1` is the numerically-lesser of the
   two DER-encoded keys sorted in ascending numerical order.
-  - MUST set `bitcoin_key_1` and `bitcoin_key_2` to `node_id_1` and `node_id_2`'s
+  - MUST set `chain_key_1` and `chain_key_2` to `node_id_1` and `node_id_2`'s
   respective `funding_pubkey`s.
   - MUST compute the double-SHA256 hash `h` of the message, beginning at offset
   256, up to the end of the message.
@@ -173,8 +184,8 @@ The origin node:
   - MUST set `node_signature_1` and `node_signature_2` to valid
     signatures of the hash `h` (using `node_id_1` and `node_id_2`'s respective
     secrets).
-  - MUST set `bitcoin_signature_1` and `bitcoin_signature_2` to valid
-  signatures of the hash `h` (using `bitcoin_key_1` and `bitcoin_key_2`'s
+  - MUST set `node_signature_1` and `node_signature_2` to valid
+  signatures of the hash `h` (using `chain_key_1` and `chain_key_2`'s
   respective secrets).
   - SHOULD set `len` to the minimum length required to hold the `features` bits
   it sets.
@@ -186,15 +197,13 @@ The receiving node:
     - MUST NOT parse the remainder of the message.
     - MUST NOT add the channel to its local network view.
     - SHOULD NOT forward the announcement.
-  - if the `short_channel_id`'s output does NOT correspond to a P2WSH (using
-    `bitcoin_key_1` and `bitcoin_key_2`, as specified in
-    [BOLT #3](03-transactions.md#funding-transaction-output)) OR the output is
-    spent:
+  - if the `short_channel_id`'s output does NOT correspond to a valid funding
+  output OR the output is spent:
     - MUST ignore the message.
   - if the specified `chain_hash` is unknown to the receiver:
     - MUST ignore the message.
   - otherwise:
-    - if `bitcoin_signature_1`, `bitcoin_signature_2`, `node_signature_1` OR
+    - if `chain_signature_1`, `chain_signature_2`, `node_signature_1` OR
     `node_signature_2` are invalid OR NOT correct:
       - SHOULD fail the connection.
     - otherwise:
@@ -221,7 +230,7 @@ The receiving node:
 
 Both nodes are required to sign to indicate they are willing to route other
 payments via this channel (i.e. be part of the public network); requiring their
-Bitcoin signatures proves that they control the channel.
+on-chain signatures proves that they control the channel.
 
 The blacklisting of conflicting nodes disallows multiple different
 announcements. Such conflicting announcements should never be broadcast by any
@@ -388,9 +397,9 @@ of *relaying* payments, not *sending* payments. When making a payment
  `B` -> `C` (announced by `B`) and `C` -> `D` (announced by `C`) will
  come into play. When building the route, amounts and expiries for HTLCs need
  to be calculated backward from the destination to the source. The exact initial
- value for `amount_msat` and the minimal value for `cltv_expiry`, to be used for
+ value for `amount` and the minimal value for `cltv_expiry`, to be used for
  the last HTLC in the route, are provided in the payment request
- (see [BOLT #11](11-payment-encoding.md#tagged-fields)).
+ (see [BMW #11](11-payment-encoding.md#tagged-fields)).
 
 1. type: 258 (`channel_update`)
 2. data:
@@ -401,10 +410,10 @@ of *relaying* payments, not *sending* payments. When making a payment
     * [`1`:`message_flags`]
     * [`1`:`channel_flags`]
     * [`2`:`cltv_expiry_delta`]
-    * [`8`:`htlc_minimum_msat`]
-    * [`4`:`fee_base_msat`]
+    * [`8`:`htlc_minimum`]
+    * [`4`:`fee_base`]
     * [`4`:`fee_proportional_millionths`]
-    * [`8`:`htlc_maximum_msat`] (option_channel_htlc_max)
+    * [`8`:`htlc_maximum`] (option_channel_htlc_max)
 
 The `channel_flags` bitfield is used to indicate the direction of the channel: it
 identifies the node that this update originated from and signals various options
@@ -452,11 +461,11 @@ The origin node:
     - MUST set the `direction` bit of `channel_flags` to 0.
   - otherwise:
     - MUST set the `direction` bit of `channel_flags` to 1.
-  - if the `htlc_maximum_msat` field is present:
+  - if the `htlc_maximum` field is present:
 	- MUST set the `option_channel_htlc_max` bit of `message_flags` to 1.
-	- MUST set `htlc_maximum_msat` to the maximum value it will send through this channel for a single HTLC.
+	- MUST set `htlc_maximum` to the maximum value it will send through this channel for a single HTLC.
 		- MUST set this to less than or equal to the channel capacity.
-		- MUST set this to less than or equal to `max_htlc_value_in_flight_msat`
+		- MUST set this to less than or equal to `max_htlc_value_in_flight`
 		  it received from the peer.
         - for channels with `chain_hash` identifying the Bitcoin blockchain:
           - MUST set this to less than 2^32.
@@ -474,12 +483,11 @@ The origin node:
     - SHOULD base `timestamp` on a UNIX timestamp.
   - MUST set `cltv_expiry_delta` to the number of blocks it will subtract from
   an incoming HTLC's `cltv_expiry`.
-  - MUST set `htlc_minimum_msat` to the minimum HTLC value (in millisatoshi)
+  - MUST set `htlc_minimum` to the minimum HTLC value
   that the channel peer will accept.
-  - MUST set `fee_base_msat` to the base fee (in millisatoshi) it will charge
+  - MUST set `fee_base` to the base fee it will charge
   for any HTLC.
-  - MUST set `fee_proportional_millionths` to the amount (in millionths of a
-  satoshi) it will charge per transferred satoshi.
+  - MUST set `fee_proportional_millionths` to the amount it will charge per transferred funds.
   - SHOULD NOT create redundant `channel_update`s
 
 The receiving node:
@@ -511,13 +519,13 @@ The receiving node:
     - SHOULD queue the message for rebroadcasting.
     - MAY choose NOT to for messages longer than the minimum expected length.
   - if the `option_channel_htlc_max` bit of `message_flags` is 0:
-    - MUST consider `htlc_maximum_msat` not to be present.
+    - MUST consider `htlc_maximum` not to be present.
   - otherwise:
-    - if `htlc_maximum_msat` is not present or greater than channel capacity:
+    - if `htlc_maximum` is not present or greater than channel capacity:
 	  - MAY blacklist this `node_id`
 	  - SHOULD ignore this channel during route considerations.
 	- otherwise:
-	  - SHOULD consider the `htlc_maximum_msat` when routing.
+	  - SHOULD consider the `htlc_maximum` when routing.
 
 ### Rationale
 
@@ -528,10 +536,9 @@ makes sense to have it be a UNIX timestamp (i.e. seconds since UTC
 of two `channel_update`s within a single second.
 
 The explicit `option_channel_htlc_max` flag to indicate the presence
-of `htlc_maximum_msat` (rather than having `htlc_maximum_msat` implied
+of `htlc_maximum` (rather than having `htlc_maximum` implied
 by the message length) allows us to extend the `channel_update`
-with different fields in future.  Since channels are limited to 2^32-1
-millisatoshis in Bitcoin, the `htlc_maximum_msat` has the same restriction.
+with different fields in future.
 
 The recommendation against redundant `channel_update`s minimizes spamming the network,
 however it is sometimes inevitable.  For example, a channel with a
@@ -554,10 +561,11 @@ rest contains the data.
 
 Encoding types:
 * `0`: uncompressed array of `short_channel_id` types, in ascending order.
-* `1`: array of `short_channel_id` types, in ascending order, compressed with zlib deflate<sup>[1](#reference-1)</sup>
+* `1`: array of `short_channel_id` types, in ascending order, compressed with zlib
+deflate<sup>[1](#reference-1)</sup>
 
 Note that a 65535-byte zlib message can decompress into 67632120
-bytes<sup>[2](#reference-2)</sup>, but since the only valid contents 
+bytes<sup>[2](#reference-2)</sup>, but since the only valid contents
 are unique 8-byte values, no more than 14 bytes can be duplicated
 across the stream: as each duplicate takes at least 2 bits, no valid
 contents could decompress to more then 3669960 bytes.
@@ -585,7 +593,8 @@ from `reply_channel_range`.
 #### Requirements
 
 The sender:
-  - MUST NOT send `query_short_channel_ids` if it has sent a previous `query_short_channel_ids` to this peer and not received `reply_short_channel_ids_end`.
+  - MUST NOT send `query_short_channel_ids` if it has sent a previous
+  `query_short_channel_ids` to this peer and not received `reply_short_channel_ids_end`.
   - MUST set `chain_hash` to the 32-byte hash that uniquely identifies the chain
   that the `short_channel_id`s refer to.
   - MUST set the first byte of `encoded_short_ids` to the encoding type.
@@ -645,21 +654,24 @@ This allows a query for channels within specific blocks.
 #### Requirements
 
 The sender of `query_channel_range`:
-  - MUST NOT send this if it has sent a previous `query_channel_range` to this peer and not received all `reply_channel_range` replies.
+  - MUST NOT send this if it has sent a previous `query_channel_range` to this
+  peer and not received all `reply_channel_range` replies.
   - MUST set `chain_hash` to the 32-byte hash that uniquely identifies the chain
   that it wants the `reply_channel_range` to refer to
   - MUST set `first_blocknum` to the first block it wants to know channels for
   - MUST set `number_of_blocks` to 1 or greater.
 
 The receiver of `query_channel_range`:
-  - if it has not sent all `reply_channel_range` to a previously received `query_channel_range` from this sender:
+  - if it has not sent all `reply_channel_range` to a previously received
+  `query_channel_range` from this sender:
     - MAY fail the connection.
   - MUST respond with one or more `reply_channel_range` whose combined range
 	cover the requested `first_blocknum` to `first_blocknum` plus
 	`number_of_blocks` minus one.
   - For each `reply_channel_range`:
     - MUST set with `chain_hash` equal to that of `query_channel_range`,
-    - MUST encode a `short_channel_id` for every open channel it knows in blocks `first_blocknum` to `first_blocknum` plus `number_of_blocks` minus one.
+    - MUST encode a `short_channel_id` for every open channel it knows in blocks
+    `first_blocknum` to `first_blocknum` plus `number_of_blocks` minus one.
     - MUST limit `number_of_blocks` to the maximum number of blocks whose
       results could fit in `encoded_short_ids`
     - if does not maintain up-to-date channel information for `chain_hash`:
@@ -706,10 +718,13 @@ The receiver:
   - If a `channel_announcement` has no corresponding `channel_update`s:
 	- MUST NOT send the `channel_announcement`.
   - Otherwise:
-	  - MUST consider the `timestamp` of the `channel_announcement` to be the `timestamp` of a corresponding `channel_update`.
-	  - MUST consider whether to send the `channel_announcement` after receiving the first corresponding `channel_update`.
+	  - MUST consider the `timestamp` of the `channel_announcement` to be the
+    `timestamp` of a corresponding `channel_update`.
+	  - MUST consider whether to send the `channel_announcement` after receiving
+    the first corresponding `channel_update`.
   - If a `channel_announcement` is sent:
-	  - MUST send the `channel_announcement` prior to any corresponding `channel_update`s and `node_announcement`s.
+	  - MUST send the `channel_announcement` prior to any corresponding
+    `channel_update`s and `node_announcement`s.
 
 #### Rationale
 
@@ -730,7 +745,7 @@ In the case where the `channel_announcement` is nonetheless missed,
 ## Initial Sync
 
 If a node requires an initial sync of gossip messages, it will be flagged
-in the `init` message, via a feature flag ([BOLT #9](09-features.md#assigned-localfeatures-flags)).
+in the `init` message, via a feature flag ([BMW #9](09-features.md#assigned-localfeatures-flags)).
 
 Note that the `initial_routing_sync` feature is overridden (and should
 be considered equal to 0) by the `gossip_queries` feature if the
@@ -913,33 +928,33 @@ channels:
 
 The network will see eight `channel_update` messages:
 
-1. A->B: `cltv_expiry_delta` = 10, `fee_base_msat` = 100, `fee_proportional_millionths` = 1000
-1. A->D: `cltv_expiry_delta` = 10, `fee_base_msat` = 100, `fee_proportional_millionths` = 1000
-1. B->A: `cltv_expiry_delta` = 20, `fee_base_msat` = 200, `fee_proportional_millionths` = 2000
-1. D->A: `cltv_expiry_delta` = 40, `fee_base_msat` = 400, `fee_proportional_millionths` = 4000
-1. B->C: `cltv_expiry_delta` = 20, `fee_base_msat` = 200, `fee_proportional_millionths` = 2000
-1. D->C: `cltv_expiry_delta` = 40, `fee_base_msat` = 400, `fee_proportional_millionths` = 4000
-1. C->B: `cltv_expiry_delta` = 30, `fee_base_msat` = 300, `fee_proportional_millionths` = 3000
-1. C->D: `cltv_expiry_delta` = 30, `fee_base_msat` = 300, `fee_proportional_millionths` = 3000
+1. A->B: `cltv_expiry_delta` = 10, `fee_base` = 100, `fee_proportional_millionths` = 1000
+1. A->D: `cltv_expiry_delta` = 10, `fee_base` = 100, `fee_proportional_millionths` = 1000
+1. B->A: `cltv_expiry_delta` = 20, `fee_base` = 200, `fee_proportional_millionths` = 2000
+1. D->A: `cltv_expiry_delta` = 40, `fee_base` = 400, `fee_proportional_millionths` = 4000
+1. B->C: `cltv_expiry_delta` = 20, `fee_base` = 200, `fee_proportional_millionths` = 2000
+1. D->C: `cltv_expiry_delta` = 40, `fee_base` = 400, `fee_proportional_millionths` = 4000
+1. C->B: `cltv_expiry_delta` = 30, `fee_base` = 300, `fee_proportional_millionths` = 3000
+1. C->D: `cltv_expiry_delta` = 30, `fee_base` = 300, `fee_proportional_millionths` = 3000
 
-**B->C.** If B were to send 4,999,999 millisatoshi directly to C, it would
+**B->C.** If B were to send 4,999,999 millicoins directly to C, it would
 neither charge itself a fee nor add its own `cltv_expiry_delta`, so it would
 use C's requested `min_final_cltv_expiry` of 9. Presumably it would also add a
 _shadow route_ to give an extra CLTV of 42. Additionally, it could add extra
 CLTV deltas at other hops, as these values represent a minimum, but chooses not
 to do so here, for the sake of simplicity:
 
-   * `amount_msat`: 4999999
+   * `amount`: 4999999
    * `cltv_expiry`: current-block-height + 9 + 42
    * `onion_routing_packet`:
      * `amt_to_forward` = 4999999
      * `outgoing_cltv_value` = current-block-height + 9 + 42
 
-**A->B->C.** If A were to send 4,999,999 millisatoshi to C via B, it needs to
+**A->B->C.** If A were to send 4,999,999 millicoins to C via B, it needs to
 pay B the fee it specified in the B->C `channel_update`, calculated as
 per [HTLC Fees](#htlc-fees):
 
-        fee_base_msat + ( amount_to_forward * fee_proportional_millionths / 1000000 )
+        fee_base + ( amount_to_forward * fee_proportional_millionths / 1000000 )
 
 	200 + ( 4999999 * 2000 / 1000000 ) = 10199
 
@@ -947,7 +962,7 @@ Similarly, it would need to add B->C's `channel_update` `cltv_expiry` (20), C's
 requested `min_final_cltv_expiry` (9), and the cost for the _shadow route_ (42).
 Thus, A->B's `update_add_htlc` message would be:
 
-   * `amount_msat`: 5010198
+   * `amount`: 5010198
    * `cltv_expiry`: current-block-height + 20 + 9 + 42
    * `onion_routing_packet`:
      * `amt_to_forward` = 4999999
@@ -958,7 +973,7 @@ B->C's `update_add_htlc` would be the same as B->C's direct payment above.
 **A->D->C.** Finally, if for some reason A chose the more expensive route via D,
 A->D's `update_add_htlc` message would be:
 
-   * `amount_msat`: 5020398
+   * `amount`: 5020398
    * `cltv_expiry`: current-block-height + 40 + 9 + 42
    * `onion_routing_packet`:
 	 * `amt_to_forward` = 4999999
