@@ -1,9 +1,9 @@
-# BOLT #9: Assigned Feature Flags
+# BMW #9: Assigned Feature Flags
 
 This document tracks the assignment of `localfeatures` and `globalfeatures`
-flags in the `init` message ([BOLT #1](01-messaging.md)) along with the
+flags in the `init` message ([BMW #1](01-messaging.md)) along with the
 `features` flag fields in the `channel_announcement` and `node_announcement`
-messages ([BOLT #7](07-routing-gossip.md)).
+messages ([BMW #7](07-routing-gossip.md)).
 The flags are tracked separately, since new flags will likely be added over time.
 
 The `features` flags in the routing messages are a subset of the
@@ -14,7 +14,7 @@ Flags are numbered from the least-significant bit, at bit 0 (i.e. 0x1,
 an _even_ bit). They are generally assigned in pairs so that features
 can be introduced as optional (_odd_ bits) and later upgraded to be compulsory
 (_even_ bits), which will be refused by outdated nodes:
-see [BOLT #1: The `init` Message](01-messaging.md#the-init-message).
+see [BMW #1: The `init` Message](01-messaging.md#the-init-message).
 
 ## Assigned `localfeatures` flags
 
@@ -22,10 +22,10 @@ These flags may only be used in the `init` message:
 
 | Bits | Name             |Description                                     | Link                                                                |
 |------|------------------|------------------------------------------------|---------------------------------------------------------------------|
-| 0/1  | `option_data_loss_protect` | Requires or supports extra `channel_reestablish` fields | [BOLT #2](02-peer-protocol.md#message-retransmission) |
-| 3  | `initial_routing_sync` | Indicates that the sending node needs a complete routing information dump | [BOLT #7](07-routing-gossip.md#initial-sync) |
-| 4/5  | `option_upfront_shutdown_script` | Commits to a shutdown scriptpubkey when opening channel | [BOLT #2](02-peer-protocol.md#the-open_channel-message) |
-| 6/7  | `gossip_queries`           | More sophisticated gossip control | [BOLT #7](07-routing-gossip.md#query-messages) |
+| 0/1  | `option_data_loss_protect` | Requires or supports extra `channel_reestablish` fields | [BMW #2](02-peer-protocol.md#message-retransmission) |
+| 3  | `initial_routing_sync` | Indicates that the sending node needs a complete routing information dump | [BMW #7](07-routing-gossip.md#initial-sync) |
+| 4/5  | `option_upfront_shutdown_script` | Commits to a shutdown scriptpubkey when opening channel | [BMW #2](02-peer-protocol.md#the-open_channel-message) |
+| 6/7  | `gossip_queries`           | More sophisticated gossip control | [BMW #7](07-routing-gossip.md#query-messages) |
 
 ## Assigned `globalfeatures` flags
 
@@ -35,7 +35,7 @@ There are currently no `globalfeatures` flags.
 
 The requirements for receiving specific bits are defined in the linked sections in the table above.
 The requirements for feature bits that are not defined
-above can be found in [BOLT #1: The `init` Message](01-messaging.md#the-init-message).
+above can be found in [BMW #1: The `init` Message](01-messaging.md#the-init-message).
 
 ## Rationale
 
