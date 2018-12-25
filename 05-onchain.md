@@ -1,4 +1,4 @@
-# BOLT #5: Recommendations for On-chain Transaction Handling
+# BMW #5: Recommendations for On-chain Transaction Handling
 
 ## Abstract
 
@@ -13,7 +13,7 @@ There are three ways a channel can end:
 1. The good way (*mutual close*): at some point the local and remote nodes agree
 to close the channel. They generate a *closing transaction* (which is similar to a
 commitment transaction, but without any pending payments) and publish it on the
-blockchain (see [BOLT #2: Channel Close](02-peer-protocol.md#channel-close)).
+blockchain (see [BMW #2: Channel Close](02-peer-protocol.md#channel-close)).
 2. The bad way (*unilateral close*): something goes wrong, possibly without evil
 intent on either side. Perhaps one party crashed, for instance. One side
 publishes its *latest commitment transaction*.
@@ -56,9 +56,7 @@ the output is considered to be its own *resolving* transaction.
 
 Outputs that are *resolved* are considered *irrevocably resolved*
 once the remote's *resolving* transaction is included in a block at least 100
-deep, on the most-work blockchain. 100 blocks is far greater than the
-longest known Bitcoin fork and is the same wait time used for
-confirmations of miners' rewards (see [Reference Implementation](https://github.com/bitcoin/bitcoin/blob/4db82b7aab4ad64717f742a7318e3dc6811b41be/src/consensus/tx_verify.cpp#L223)).
+deep, on the most-work blockchain.
 
 ## Requirements
 
@@ -100,7 +98,7 @@ the *remote node* in return for a payment preimage.
 4. _remote node's offered HTLCs_: Zero or more pending payments (*HTLCs*), to
 pay the *local node* in return for a payment preimage.
 
-To incentivize the local and remote nodes to cooperate, an `OP_CHECKSEQUENCEVERIFY`
+To incentivize the local and remote nodes to cooperate, an
 relative timeout encumbers the *local node's outputs* (in the *local node's
 commitment transaction*) and the *remote node's outputs* (in the *remote node's
 commitment transaction*). So for example, if the local node publishes its
@@ -109,7 +107,7 @@ whereas the remote node will have immediate access to its own funds. As a
 consequence, the two commitment transactions are not identical, but they are
 (usually) symmetrical.
 
-See [BOLT #3: Commitment Transaction](03-transactions.md#commitment-transaction)
+See [BMW #3: Commitment Transaction](03-transactions.md#commitment-transaction)
 for more details.
 
 # Failing a Channel
@@ -119,7 +117,7 @@ efficient is preferred.
 
 Various error cases involve closing a channel. The requirements for sending
 error messages to peers are specified in
-[BOLT #1: The `error` Message](01-messaging.md#the-error-message).
+[BMW #1: The `error` Message](01-messaging.md#the-error-message).
 
 ## Requirements
 
@@ -143,7 +141,7 @@ A node:
 
 ## Rationale
 
-Since `dust_limit_satoshis` is supposed to prevent creation of uneconomic
+Since `dust_limit` is supposed to prevent creation of uneconomic
 outputs (which would otherwise remain forever, unspent on the blockchain), all
 commitment transaction outputs MUST be spent.
 
@@ -163,8 +161,7 @@ it to be processed.
 A mutual close transaction *resolves* the funding transaction output.
 
 In the case of a mutual close, a node need not do anything else, as it has
-already agreed to the output, which is sent to its specified `scriptpubkey` (see
-[BOLT #2: Closing initiation: `shutdown`](02-peer-protocol.md#closing-initiation-shutdown)).
+already agreed to the output (see [BMW #2: Closing initiation: `shutdown`](02-peer-protocol.md#closing-initiation-shutdown)).
 
 # Unilateral Close Handling: Local Commitment Transaction
 
@@ -173,7 +170,7 @@ node discovers its *local commitment transaction*, which *resolves* the funding
 transaction output.
 
 However, a node cannot claim funds from the outputs of a unilateral close that
-it initiated, until the `OP_CHECKSEQUENCEVERIFY` delay has passed (as specified
+it initiated, until the delay has passed (as specified
 by the remote node's `to_self_delay` field). Where relevant, this situation is
 noted below.
 
@@ -182,7 +179,7 @@ noted below.
 A node:
   - upon discovering its *local commitment transaction*:
     - SHOULD spend the `to_local` output to a convenient address.
-    - MUST wait until the `OP_CHECKSEQUENCEVERIFY` delay has passed (as
+    - MUST wait until the delay has passed (as
     specified by the remote node's `to_self_delay` field) before spending the
     output.
       - Note: if the output is spent (as recommended), the output is *resolved*
@@ -236,7 +233,7 @@ A node:
         - Note: if the output is spent (as recommended), the output is
         *resolved* by the spending transaction, otherwise it is considered
         *resolved* by the commitment transaction itself.
-      - MUST wait until the `OP_CHECKSEQUENCEVERIFY` delay has passed (as
+      - MUST wait until the delay has passed (as
       specified by the remote node's `open_channel` `to_self_delay` field)
       before spending that HTLC-timeout output.
   - for any committed HTLC that does NOT have an output in this commitment
@@ -264,7 +261,7 @@ prevent the remote node fulfilling it and claiming the funds) before the
 local node can back-fail any corresponding incoming HTLC, using
 `update_fail_htlc` (presumably with reason `permanent_channel_failure`), as
 detailed in
-[BOLT #2](02-peer-protocol.md#forwarding-htlcs).
+[BMW #2](02-peer-protocol.md#forwarding-htlcs).
 If the incoming HTLC is also on-chain, a node must simply wait for it to
 timeout: there is no way to signal early failure.
 
@@ -310,7 +307,7 @@ A local node:
       - MUST NOT *resolve* the output by spending it.
   - SHOULD resolve that HTLC-success transaction output by spending it to a
   convenient address.
-  - MUST wait until the `OP_CHECKSEQUENCEVERIFY` delay has passed (as specified
+  - MUST wait until the delay has passed (as specified
     by the *remote node's* `open_channel`'s `to_self_delay` field), before
     spending that HTLC-success transaction output.
 
@@ -337,8 +334,7 @@ A local node:
   *remote node*:
     - if possible:
       - MUST handle each output as specified below.
-      - MAY take no action in regard to the associated `to_remote`, which is
-      simply a P2WPKH output to the *local node*.
+      - MAY take no action in regard to the associated `to_remote`.
         - Note: `to_remote` is considered *resolved* by the commitment transaction
         itself.
       - MAY take no action in regard to the associated `to_local`, which is a
@@ -362,11 +358,7 @@ commitment transaction; hence, the local node is required to handle both.
 In the case of data loss, a local node may reach a state where it doesn't
 recognize all of the *remote node's* commitment transaction HTLC outputs. It can
 detect the data loss state, because it has signed the transaction, and the
-commitment number is greater than expected. If both nodes support
-`option_data_loss_protect`, the local node will possess the remote's
-`per_commitment_point`, and thus can derive its own `remotepubkey` for the
-transaction, in order to salvage its own funds. Note: in this scenario, the node
-will be unable to salvage the HTLCs.
+commitment number is greater than expected.
 
 ## HTLC Output Handling: Remote Commitment, Local Offers
 
@@ -420,7 +412,7 @@ Once it has timed out, the local node needs to spend the HTLC output (to prevent
 the remote node from using the HTLC-success transaction) before it can
 back-fail any corresponding incoming HTLC, using `update_fail_htlc`
 (presumably with reason `permanent_channel_failure`), as detailed in
-[BOLT #2](02-peer-protocol.md#forwarding-htlcs).
+[BMW #2](02-peer-protocol.md#forwarding-htlcs).
 If the incoming HTLC is also on-chain, a node simply waits for it to
 timeout, as there's no way to signal early failure.
 
@@ -487,8 +479,7 @@ revocation private key, the funding transaction output is *resolved*.
 A local node:
   - MUST NOT broadcast a commitment transaction for which *it* has exposed the
   `per_commitment_secret`.
-  - MAY take no action regarding the _local node's main output_, as this is a
-  simple P2WPKH output to itself.
+  - MAY take no action regarding the _local node's main output_.
     - Note: this output is considered *resolved* by the commitment transaction
       itself.
   - MUST *resolve* the _remote node's main output_ by spending it using the
@@ -513,7 +504,7 @@ A local node:
 
 A single transaction that resolves all the outputs will be under the
 standard size limit because of the 483 HTLC-per-party limit (see
-[BOLT #2](02-peer-protocol.md#the-open_channel-message)).
+[BMW #2](02-peer-protocol.md#the-open_channel-message)).
 
 Note: if a single transaction is used, it may be invalidated if the remote node
 refuses to broadcast the HTLC-timeout and HTLC-success transactions in a timely
@@ -543,8 +534,7 @@ standard output script), in addition to a 2-byte witness header.
 
 In addition to spending these outputs, a penalty transaction may optionally
 spend the commitment transaction's `to_remote` output (e.g. to reduce the total
-amount paid in fees). Doing so requires the inclusion of a P2WPKH witness and an
-additional *txinput*, resulting in an additional 108 + 164 = 272 bytes.
+amount paid in fees).
 
 In the worst case scenario, the node holds only incoming HTLCs, and the
 HTLC-timeout transactions are not published, which forces the node to spend from
@@ -575,74 +565,6 @@ A node:
   - MAY monitor (valid) broadcast transactions (a.k.a the mempool).
     - Note: watching for mempool transactions should result in lower latency
     HTLC redemptions.
-
-# Appendix A: Expected Weights
-
-## Expected Weight of the `to_local` Penalty Transaction Witness
-
-As described in [BOLT #3](03-transactions.md), the witness for this transaction
-is:
-
-    <sig> 1 { OP_IF <revocationpubkey> OP_ELSE to_self_delay OP_CSV OP_DROP <local_delayedpubkey> OP_ENDIF OP_CHECKSIG }
-
-The *expected weight* of the `to_local` penalty transaction witness is
-calculated as follows:
-
-    to_local_script: 83 bytes
-        - OP_IF: 1 byte
-            - OP_DATA: 1 byte (revocationpubkey length)
-            - revocationpubkey: 33 bytes
-        - OP_ELSE: 1 byte
-            - OP_DATA: 1 byte (delay length)
-            - delay: 8 bytes
-            - OP_CHECKSEQUENCEVERIFY: 1 byte
-            - OP_DROP: 1 byte
-            - OP_DATA: 1 byte (local_delayedpubkey length)
-            - local_delayedpubkey: 33 bytes
-        - OP_ENDIF: 1 byte
-        - OP_CHECKSIG: 1 byte
-
-    to_local_penalty_witness: 160 bytes
-        - number_of_witness_elements: 1 byte
-        - revocation_sig_length: 1 byte
-        - revocation_sig: 73 bytes
-        - one_length: 1 byte
-        - witness_script_length: 1 byte
-        - witness_script (to_local_script)
-
-## Expected Weight of the `offered_htlc` Penalty Transaction Witness
-
-The *expected weight* of the `offered_htlc` penalty transaction witness is
-calculated as follows (some calculations have already been made in
-[BOLT #3](03-transactions.md)):
-
-    offered_htlc_script: 133 bytes
-
-    offered_htlc_penalty_witness: 243 bytes
-        - number_of_witness_elements: 1 byte
-        - revocation_sig_length: 1 byte
-        - revocation_sig: 73 bytes
-        - revocation_key_length: 1 byte
-        - revocation_key: 33 bytes
-        - witness_script_length: 1 byte
-        - witness_script (offered_htlc_script)
-
-## Expected Weight of the `accepted_htlc` Penalty Transaction Witness
-
-The *expected weight*  of the `accepted_htlc` penalty transaction witness is
-calculated as follows (some calculations have already been made in
-[BOLT #3](03-transactions.md)):
-
-    accepted_htlc_script: 139 bytes
-
-    accepted_htlc_penalty_witness: 249 bytes
-        - number_of_witness_elements: 1 byte
-        - revocation_sig_length: 1 byte
-        - revocation_sig: 73 bytes
-        - revocationpubkey_length: 1 byte
-        - revocationpubkey: 33 bytes
-        - witness_script_length: 1 byte
-        - witness_script (accepted_htlc_script)
 
 # Authors
 
