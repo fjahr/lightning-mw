@@ -1,8 +1,10 @@
-# BOLT #10: DNS Bootstrap and Assisted Node Location
+# BMW #10: DNS Bootstrap and Assisted Node Location
 
 ## Overview
 
-This specification describes a node discovery mechanism based on the Domain Name System (DNS).
+This specification describes a node discovery mechanism based on the Domain
+Name System (DNS).
+
 Its purpose is twofold:
 
  - Bootstrap: providing the initial node discovery for nodes that have no known contacts in the network
@@ -45,7 +47,7 @@ The following key-value pairs MUST be supported by a DNS seed:
    - used to specify what realm the returned nodes must support
    - default value: 0 (Bitcoin)
  - `a`: address types
-   - a bitfield that uses the types from [BOLT #7](07-routing-gossip.md) as bit
+   - a bitfield that uses the types from [BMW #7](07-routing-gossip.md) as bit
    index
    - used to specify what address types should be returned for `SRV` queries
    - MAY only be used for `SRV` queries
@@ -79,8 +81,8 @@ name.
   - if it does NOT implement filtering by a given condition:
     - MAY ignore the condition altogether (i.e. the seed filtering is best effort only).
   - for `A` and `AAAA` queries:
-    - MUST return only nodes listening on the default port 9735, as defined in
-    [BOLT #1](01-messaging.md).
+    - MUST return only nodes listening on the default port 3112, as defined in
+    [BMW #1](01-messaging.md).
   - for `SRV` queries:
     - MAY return nodes that are listening on non-default ports, since `SRV`
     records return a _(hostname,port)_-tuple.
