@@ -1,9 +1,9 @@
-# BOLT #8: Encrypted and Authenticated Transport
+# BMW #8: Encrypted and Authenticated Transport
 
 All communications between Lightning nodes is encrypted in order to
 provide confidentiality for all transcripts between nodes and is authenticated in order to
 avoid malicious interference. Each node has a known long-term identifier that
-is a public key on Bitcoin's `secp256k1` curve. This long-term public key is
+is a public key on the `secp256k1` curve. This long-term public key is
 used within the protocol to establish an encrypted and authenticated connection
 with peers, and also to authenticate any information advertised on behalf
 of a node.
