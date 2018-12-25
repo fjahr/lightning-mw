@@ -1,4 +1,4 @@
-# BOLT #11: Invoice Protocol for Lightning Payments
+# BMW #11: Invoice Protocol for Lightning Payments
 
 A simple, extendable QR-code-ready protocol for requesting payments
 over Lightning.
@@ -25,10 +25,8 @@ for manual entry, which is unlikely to happen often given the length
 of Lightning invoices.
 
 If a URI scheme is desired, the current recommendation is to either
-use 'lightning:' as a prefix before the BOLT-11 encoding (note: not
-'lightning://'), or for fallback to bitcoin payments to use 'bitcoin:',
-as per BIP-21, with the key 'lightning' and the value equal to the BOLT-11
-encoding.
+use 'lightning-mw:' as a prefix before the BMW-11 encoding (note: not
+'lightning-mw://').
 
 ## Requirements
 
@@ -41,9 +39,9 @@ and MUST fail if the checksum is incorrect.
 # Human-Readable Part
 
 The human-readable part of a Lightning invoice consists of two sections:
-1. `prefix`: `ln` + BIP-0173 currency prefix (e.g. `lnbc` for bitcoin mainnet, `lntb` for bitcoin testnet and `lnbcrt` for bitcoin regtest)
+1. `prefix`: `ln` + currency prefix
 1. `amount`: optional number in that currency, followed by an optional
-   `multiplier` letter. The unit encoded here is the 'social' convention of a payment unit -- in the case of Bitcoin the unit is 'bitcoin' NOT satoshis.
+   `multiplier` letter. The unit encoded here is the 'social' convention of a payment unit
 
 The following `multiplier` letters are defined:
 
@@ -121,14 +119,23 @@ Each Tagged Field is of the form:
 
 Currently defined tagged fields are:
 
-* `p` (1): `data_length` 52. 256-bit SHA256 payment_hash. Preimage of this provides proof of payment
-* `d` (13): `data_length` variable. Short description of purpose of payment (UTF-8),  e.g. '1 cup of coffee' or 'ナンセンス 1杯'
+* `p` (1): `data_length` 52. 256-bit SHA256 payment_hash. Preimage of this
+provides proof of payment
+* `d` (13): `data_length` variable. Short description of purpose of payment
+(UTF-8), e.g. '1 cup of coffee' or 'ナンセンス 1杯'
 * `n` (19): `data_length` 53. 33-byte public key of the payee node
-* `h` (23): `data_length` 52. 256-bit description of purpose of payment (SHA256). This is used to commit to an associated description that is over 639 bytes, but the transport mechanism for the description in that case is transport specific and not defined here.
-* `x` (6): `data_length` variable. `expiry` time in seconds (big-endian). Default is 3600 (1 hour) if not specified.
-* `c` (24): `data_length` variable. `min_final_cltv_expiry` to use for the last HTLC in the route. Default is 9 if not specified.
-* `f` (9): `data_length` variable, depending on version. Fallback on-chain address: for bitcoin, this starts with a 5-bit `version` and contains a witness program or P2PKH or P2SH address.
-* `r` (3): `data_length` variable. One or more entries containing extra routing information for a private route; there may be more than one `r` field
+* `h` (23): `data_length` 52. 256-bit description of purpose of payment
+(SHA256). This is used to commit to an associated description that is over
+639 bytes, but the transport mechanism for the description in that case is
+transport specific and not defined here.
+* `x` (6): `data_length` variable. `expiry` time in seconds (big-endian).
+Default is 3600 (1 hour) if not specified.
+* `c` (24): `data_length` variable. `min_final_cltv_expiry` to use for the
+last HTLC in the route. Default is 9 if not specified.
+* `f` (9): `data_length` variable, depending on version. Fallback on-chain
+address.
+* `r` (3): `data_length` variable. One or more entries containing extra
+routing information for a private route; there may be more than one `r` field
    * `pubkey` (264 bits)
    * `short_channel_id` (64 bits)
    * `fee_base_msat` (32 bits, big-endian)
@@ -157,17 +164,16 @@ A writer SHOULD use the minimum `data_length` possible for `x` and `c` fields.
 A writer MAY include one `n` field, which MUST be set to the public key
 used to create the `signature`.
 
-A writer MAY include one or more `f` fields. For bitcoin payments, a writer MUST set an
-`f` field to a valid witness version and program, or `17` followed by
-a public key hash, or `18` followed by a script hash.
+A writer MAY include one or more `f` fields.
 
 A writer MUST include at least one `r` field if there is not a
 public channel associated with its public key. The `r` field MUST contain
 one or more ordered entries, indicating the forward route from a
 public node to the final destination. For each entry, the `pubkey` is the
 node ID of the start of the channel; `short_channel_id` is the short channel ID
-field to identify the channel; and `fee_base_msat`, `fee_proportional_millionths`, and `cltv_expiry_delta` are as specified in [BOLT #7](07-routing-gossip.md#the-channel_update-message). A writer MAY include more than one `r` field to
-provide multiple routing options.
+field to identify the channel; and `fee_base`, `fee_proportional_millionths`,
+and `cltv_expiry_delta` are as specified in [BMW #7](07-routing-gossip.md#the-channel_update-message).
+A writer MAY include more than one `r` field to provide multiple routing options.
 
 A writer MUST pad field data to a multiple of 5 bits, using zeroes.
 
@@ -252,8 +258,8 @@ Don't be like the school of [Little Bobby Tables](https://xkcd.com/327/).
 
 # Payer / Payee Interactions
 
-These are generally defined by the rest of the Lightning BOLT series,
-but it's worth noting that [BOLT #5](05-onchain.md) specifies that the payee SHOULD
+These are generally defined by the rest of the Lightning BMW series,
+but it's worth noting that [BMW #5](05-onchain.md) specifies that the payee SHOULD
 accept up to twice the expected `amount`, so the payer can make
 payments harder to track by adding small variations.
 
