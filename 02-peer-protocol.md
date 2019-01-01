@@ -772,27 +772,16 @@ would create a Denial of Service risk; therefore, forgetting it is recommended
 (even if the promise of `push_funds` is significant).
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ## Normal Operation
 
-Once both nodes have exchanged `funding_locked` (and optionally [`announcement_signatures`](07-routing-gossip.md#the-announcement_signatures-message)), the channel can be used to make payments via Hashed Time Locked Contracts.
+Once both nodes have exchanged `funding_locked` (and optionally
+[`announcement_signatures`](07-routing-gossip.md#the-announcement_signatures-message)),
+the channel can be used to make payments via Hashed Time Locked Contracts.
 
 Changes are sent in batches: one or more `update_` messages are sent before a
 `commitment_signed` message, as in the following diagram:
+
+XXXXX
 
         +-------+                            +-------+
         |       |--(1)---- add_htlc   ------>|       |
@@ -809,6 +798,8 @@ Changes are sent in batches: one or more `update_` messages are sent before a
         |       |                            |       |
         |       |<-(9)--- revoke_and_ack-----|       |
         +-------+                            +-------+
+
+XXXXX
 
 Counter-intuitively, these updates apply to the *other node's*
 commitment transaction; the node only adds those updates to its own
@@ -849,14 +840,18 @@ the blockchain.
 A node:
   - until the incoming HTLC has been irrevocably committed:
     - MUST NOT offer an HTLC (`update_add_htlc`) in response to an incoming HTLC.
-  - until the removal of the outgoing HTLC is irrevocably committed, OR until the outgoing on-chain HTLC output has been spent via the HTLC-timeout transaction (with sufficient depth):
+  - until the removal of the outgoing HTLC is irrevocably committed, OR until the
+  outgoing on-chain HTLC output has been spent via the HTLC-timeout transaction
+  (with sufficient depth):
     - MUST NOT fail an incoming HTLC (`update_fail_htlc`) for which it has committed
 to an outgoing HTLC.
-  - once its `cltv_expiry` has been reached, OR if `cltv_expiry` minus `current_height` is less than `cltv_expiry_delta` for the outgoing channel:
+  - once its `cltv_expiry` has been reached, OR if `cltv_expiry` minus
+  `current_height` is less than `cltv_expiry_delta` for the outgoing channel:
     - MUST fail an incoming HTLC (`update_fail_htlc`).
   - if an incoming HTLC's `cltv_expiry` is unreasonably far in the future:
     - SHOULD fail that incoming HTLC (`update_fail_htlc`).
-  - upon receiving an `update_fulfill_htlc` for the outgoing HTLC, OR upon discovering the `payment_preimage` from an on-chain HTLC spend:
+  - upon receiving an `update_fulfill_htlc` for the outgoing HTLC, OR upon discovering
+  the `payment_preimage` from an on-chain HTLC spend:
     - MUST fulfill an incoming HTLC for which it has committed to an outgoing HTLC.
 
 #### Rationale
@@ -888,8 +883,8 @@ received.
    HTLC on-chain before A can time it out on-chain.
 
 The critical settings here are the `cltv_expiry_delta` in
-[BOLT #7](07-routing-gossip.md#the-channel_update-message) and the
-related `min_final_cltv_expiry` in [BOLT #11](11-payment-encoding.md#tagged-fields).
+[BMW #7](07-routing-gossip.md#the-channel_update-message) and the
+related `min_final_cltv_expiry` in [BMW #11](11-payment-encoding.md#tagged-fields).
 `cltv_expiry_delta` is the minimum difference in HTLC CLTV timeouts, in
 the forwarding case (B). `min_final_cltv_expiry` is the minimum difference
 between HTLC CLTV timeout and the current block height, for the
@@ -958,7 +953,7 @@ the channel has to be failed and the HTLC fulfilled on-chain before its
 4. the minimum `cltv_expiry` accepted for terminal payments: the
    worst case for the terminal node C is `2R+G+S` blocks (as, again, steps
    1-3 above don't apply). The default in
-   [BOLT #11](11-payment-encoding.md) is 9, which is slightly more
+   [BMW #11](11-payment-encoding.md) is 9, which is slightly more
    conservative than the 7 that this calculation suggests.
 
 #### Requirements
@@ -981,10 +976,7 @@ A fulfilling node:
 ### Adding an HTLC: `update_add_htlc`
 
 Either node can send `update_add_htlc` to offer an HTLC to the other,
-which is redeemable in return for a payment preimage. Amounts are in
-millisatoshi, though on-chain enforcement is only possible for whole
-satoshi amounts greater than the dust limit (in commitment transactions these are rounded down as
-specified in [BOLT #3](03-transactions.md)).
+which is redeemable in return for a payment preimage.
 
 The format of the `onion_routing_packet` portion, which indicates where the payment
 is destined, is described in [BOLT #4](04-onion-routing.md).
@@ -993,7 +985,7 @@ is destined, is described in [BOLT #4](04-onion-routing.md).
 2. data:
    * [`32`:`channel_id`]
    * [`8`:`id`]
-   * [`8`:`amount_msat`]
+   * [`8`:`amount`]
    * [`32`:`payment_hash`]
    * [`4`:`cltv_expiry`]
    * [`1366`:`onion_routing_packet`]
@@ -1001,35 +993,39 @@ is destined, is described in [BOLT #4](04-onion-routing.md).
 #### Requirements
 
 A sending node:
-  - MUST NOT offer `amount_msat` it cannot pay for in the
+  - MUST NOT offer `amount` it cannot pay for in the
 remote commitment transaction at the current `feerate_per_kw` (see "Updating
 Fees") while maintaining its channel reserve.
-  - MUST offer `amount_msat` greater than 0.
-  - MUST NOT offer `amount_msat` below the receiving node's `htlc_minimum_msat`
+  - MUST offer `amount` greater than 0.
+  - MUST NOT offer `amount` below the receiving node's `htlc_minimum`
   - MUST set `cltv_expiry` less than 500000000.
   - for channels with `chain_hash` identifying the Bitcoin blockchain:
-    - MUST set the four most significant bytes of `amount_msat` to 0.
+    - MUST set the four most significant bytes of `amount` to 0.
   - if result would be offering more than the remote's
   `max_accepted_htlcs` HTLCs, in the remote commitment transaction:
     - MUST NOT add an HTLC.
   - if the sum of total offered HTLCs would exceed the remote's
-`max_htlc_value_in_flight_msat`:
+`max_htlc_value_in_flight`:
     - MUST NOT add an HTLC.
   - for the first HTLC it offers:
     - MUST set `id` to 0.
   - MUST increase the value of `id` by 1 for each successive offer.
 
 A receiving node:
-  - receiving an `amount_msat` equal to 0, OR less than its own `htlc_minimum_msat`:
+  - receiving an `amount` equal to 0, OR less than its own `htlc_minimum`:
     - SHOULD fail the channel.
-  - receiving an `amount_msat` that the sending node cannot afford at the current `feerate_per_kw` (while maintaining its channel reserve):
+  - receiving an `amount` that the sending node cannot afford at the current
+  `feerate_per_kw` (while maintaining its channel reserve):
     - SHOULD fail the channel.
   - if a sending node adds more than its `max_accepted_htlcs` HTLCs to
-    its local commitment transaction, OR adds more than its `max_htlc_value_in_flight_msat` worth of offered HTLCs to its local commitment transaction:
+    its local commitment transaction, OR adds more than its
+    `max_htlc_value_in_flight` worth of offered HTLCs to its local commitment
+    transaction:
     - SHOULD fail the channel.
   - if sending node sets `cltv_expiry` to greater or equal to 500000000:
     - SHOULD fail the channel.
-  - for channels with `chain_hash` identifying the Bitcoin blockchain, if the four most significant bytes of `amount_msat` are not 0:
+  - for channels with `chain_hash` identifying the Bitcoin blockchain, if the
+  four most significant bytes of `amount` are not 0:
     - MUST fail the channel.
   - MUST allow multiple HTLCs with the same `payment_hash`.
   - if the sender did not previously acknowledge the commitment of that HTLC:
@@ -1037,9 +1033,12 @@ A receiving node:
   - if other `id` violations occur:
     - MAY fail the channel.
 
-The `onion_routing_packet` contains an obfuscated list of hops and instructions for each hop along the path.
-It commits to the HTLC by setting the `payment_hash` as associated data, i.e. includes the `payment_hash` in the computation of HMACs.
-This prevents replay attacks that would reuse a previous `onion_routing_packet` with a different `payment_hash`.
+The `onion_routing_packet` contains an obfuscated list of hops and instructions
+for each hop along the path.
+It commits to the HTLC by setting the `payment_hash` as associated data, i.e.
+includes the `payment_hash` in the computation of HMACs.
+This prevents replay attacks that would reuse a previous `onion_routing_packet`
+with a different `payment_hash`.
 
 #### Rationale
 
@@ -1058,12 +1057,12 @@ recipient code (though strict checking may help debugging).
 sides send the maximum number of HTLCs, the `commitment_signed` message will
 still be under the maximum message size. It also ensures that
 a single penalty transaction can spend the entire commitment transaction,
-as calculated in [BOLT #5](05-onchain.md#penalty-transaction-weight-calculation).
+as calculated in [BMW #5](05-onchain.md#penalty-transaction-weight-calculation).
 
 `cltv_expiry` values equal to or greater than 500000000 would indicate a time in
 seconds, and the protocol only supports an expiry in blocks.
 
-`amount_msat` is deliberately limited for this version of the
+`amount` is deliberately limited for this version of the
 specification; larger amounts are not necessary, nor wise, during the
 bootstrap phase of the network.
 
@@ -1091,7 +1090,7 @@ For a timed out or route-failed HTLC:
    * [`len`:`reason`]
 
 The `reason` field is an opaque encrypted blob for the benefit of the
-original HTLC initiator, as defined in [BOLT #4](04-onion-routing.md);
+original HTLC initiator, as defined in [BMW #4](04-onion-routing.md);
 however, there's a special malformed failure variant for the case where
 the peer couldn't parse it: in this case the current node instead takes action, encrypting
 it into a `update_fail_htlc` for relaying.
@@ -1150,10 +1149,11 @@ errors. However, without re-checking the actual encrypted packet sent,
 it won't know whether the error was its own or the remote's; so
 such detection is left as an option.
 
+XXXXX
 ### Committing Updates So Far: `commitment_signed`
 
 When a node has changes for the remote commitment, it can apply them,
-sign the resulting transaction (as defined in [BOLT #3](03-transactions.md)), and send a
+sign the resulting transaction (as defined in [BMW #3](03-transactions.md)), and send a
 `commitment_signed` message.
 
 1. type: 132 (`commitment_signed`)
