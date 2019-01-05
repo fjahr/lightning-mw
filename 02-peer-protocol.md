@@ -781,25 +781,21 @@ the channel can be used to make payments via Hashed Time Locked Contracts.
 Changes are sent in batches: one or more `update_` messages are sent before a
 `commitment_signed` message, as in the following diagram:
 
-XXXXX
 
-        +-------+                            +-------+
-        |       |--(1)---- add_htlc   ------>|       |
-        |       |--(2)---- add_htlc   ------>|       |
-        |       |<-(3)---- add_htlc   -------|       |
-        |       |                            |       |
-        |       |--(4)----   commit   ------>|       |
-        |   A   |                            |   B   |
-        |       |<-(5)--- revoke_and_ack-----|       |
-        |       |<-(6)----   commit   -------|       |
-        |       |                            |       |
-        |       |--(7)--- revoke_and_ack---->|       |
-        |       |--(8)----   commit   ------>|       |
-        |       |                            |       |
-        |       |<-(9)--- revoke_and_ack-----|       |
-        +-------+                            +-------+
+        +-------+                              +-------+
+        |       |--(1)------  add_htlc  ------>|       |
+        |       |<-(2)- commitments_created  --|       |
+        |       |                              |       |
+        |       |--(3)--  proofs_created  ---->|       |
+        |   A   |<-(4)- transactions_created --|   B   |
+        |       |                              |       |
+        |       |--(5)---  kernels_created  -->|       |
+        |       |<-(6)---  kernels_signed  ----|       |
+        |       |                              |       |
+        |       |--(7)---  htlc_complete  ---->|       |
+        |       |<-(8)---  revoke_and_ack  ----|       |
+        +-------+                              +-------+
 
-XXXXX
 
 Counter-intuitively, these updates apply to the *other node's*
 commitment transaction; the node only adds those updates to its own
@@ -979,7 +975,7 @@ Either node can send `update_add_htlc` to offer an HTLC to the other,
 which is redeemable in return for a payment preimage.
 
 The format of the `onion_routing_packet` portion, which indicates where the payment
-is destined, is described in [BOLT #4](04-onion-routing.md).
+is destined, is described in [BMW #4](04-onion-routing.md).
 
 1. type: 128 (`update_add_htlc`)
 2. data:
@@ -1149,93 +1145,202 @@ errors. However, without re-checking the actual encrypted packet sent,
 it won't know whether the error was its own or the remote's; so
 such detection is left as an option.
 
-XXXXX
-### Committing Updates So Far: `commitment_signed`
 
-When a node has changes for the remote commitment, it can apply them,
-sign the resulting transaction (as defined in [BMW #3](03-transactions.md)), and send a
-`commitment_signed` message.
+### The `commitments_created` Message
 
-1. type: 132 (`commitment_signed`)
+This message sends the commitments to the updated remote commitment transaction.
+These commitments are: The updated commitment transaction with it's new outputs
+and the three HTLC transactions themselves (the hashlocked one
+paying the local party, one with relative timelock to the remote party, one with
+the revocation hash to the remote party). Since the latter two HTLC transactions
+share the same inputs and outputs they can also use the same commitment.
+
+
+1. type: XX (`commitments_created`)
 2. data:
-   * [`32`:`channel_id`]
-   * [`64`:`signature`]
-   * [`2`:`num_htlcs`]
-   * [`num_htlcs*64`:`htlc_signature`]
+    * [`32`:`channel_id`]
+    * [`8`:`id`]
+    * [`32`:`commitment_x_coordinate`]
+    * [`2`:`commitment_y_parity`]
+    * [`32`:`htlc_local_x_coordinate`]
+    * [`2`:`htlc_local_y_parity`]
+    * [`32`:`htlc_remote_x_coordinate`]
+    * [`2`:`htlc_remote_y_parity`]
+
 
 #### Requirements
 
-A sending node:
-  - MUST NOT send a `commitment_signed` message that does not include any
-updates.
-  - MAY send a `commitment_signed` message that only
-alters the fee.
-  - MAY send a `commitment_signed` message that doesn't
-change the commitment transaction aside from the new revocation hash
-(due to dust, identical HTLC replacement, or insignificant or multiple
-fee changes).
-  - MUST include one `htlc_signature` for every HTLC transaction corresponding
-  to BIP69 lexicographic ordering of the commitment transaction.
-  - if it has not recently received a message from the remote node:
-      - SHOULD use `ping` and await the reply `pong` before sending `commitment_signed`.
+The sender MUST set:
+  - `x_coordinate` and `y_parity` must be the a generator point scaled by
+  blinding factor the fundee selected.
 
-A receiving node:
-  - once all pending updates are applied:
-    - if `signature` is not valid for its local commitment transaction:
-      - MUST fail the channel.
-    - if `num_htlcs` is not equal to the number of HTLC outputs in the local
-    commitment transaction:
-      - MUST fail the channel.
-  - if any `htlc_signature` is not valid for the corresponding HTLC transaction:
+The recipient:
+  - if the x and y coordinates are not a valid curve point:
     - MUST fail the channel.
-  - MUST respond with a `revoke_and_ack` message.
 
-#### Rationale
 
-There's little point offering spam updates: it implies a bug.
+### The `proofs_created` Message
 
-The `num_htlcs` field is redundant, but makes the packet length check fully self-contained.
+This message sends proofs for the newly created transactions.
 
-The recommendation to require recent messages recognizes the reality
-that networks are unreliable: nodes might not realize their peers are
-offline until after sending `commitment_signed`.  Once
-`commitment_signed` is sent, the sender considers itself bound to
-those HTLCs, and cannot fail the related incoming HTLCs until the
-output HTLCs are fully resolved.
+1. type: XX (`proofs_created`)
+2. data:
+    * [`32`:`channel_id`]
+    * [`8`:`id`]
+    * [`32`:`commitment_proof`]
+    * [`32`:`htlc_local_proof`]
+    * [`32`:`htlc_remote_proof`]
+
+#### Requirements
+
+The recipient:
+  - if range proofs are not valid:
+    - MUST fail the channel.
+
+
+### The `transactions_created` Message
+
+This message acknowledges that the transactions are all complete, thus
+signalling to start the process of creating the transaction kernels.
+For the kernels the selected nonces and transactions are sent along.
+
+1. type: XX (`transactions_created`)
+2. data:
+    * [`32`:`channel_id`]
+    * [`8`:`id`]
+    * [`32`:`commitment_proof`]
+    * [`32`:`commitment_nonce_x_coordinate`]
+    * [`2`:`commitment_nonce_y_parity`]
+    * [`32`:`commitment_tx_x_coordinate`]
+    * [`2`:`commitment_tx_y_parity`]
+    * [`32`:`htlc_timeout_proof`]
+    * [`32`:`htlc_timeout_nonce_x_coordinate`]
+    * [`2`:`htlc_timeout_nonce_y_parity`]
+    * [`32`:`htlc_timeout_tx_x_coordinate`]
+    * [`2`:`htlc_timeout_tx_y_parity`]
+    * [`32`:`htlc_revoke_proof`]
+    * [`32`:`htlc_revoke_nonce_x_coordinate`]
+    * [`2`:`htlc_revoke_nonce_y_parity`]
+    * [`32`:`htlc_revoke_tx_x_coordinate`]
+    * [`2`:`htlc_revoke_tx_y_parity`]
+    * [`32`:`htlc_hashlock_proof`]
+    * [`32`:`htlc_hashlock_nonce_x_coordinate`]
+    * [`2`:`htlc_hashlock_nonce_y_parity`]
+    * [`32`:`htlc_hashlock_tx_x_coordinate`]
+    * [`2`:`htlc_hashlock_tx_y_parity`]
+
+
+#### Requirements
+
+The sender MUST set:
+  - `nonce_x_coordinate` and `nonce_y_parity`, as well as `tx_x_coordinate` and `tx_y_parity`
+  must be the generator points scaled by blinding factor the fundee selected.
+
+The recipient:
+  - if the x and y coordinates are not a valid curve point:
+    - MUST fail the channel.
+
+
+### The `kernels_created` Message
+
+The message includes one side of the kernel signatures including the random nonces
+for all the open transactions and sends those values over to the other party.
+
+1. type: XX (`kernels_created`)
+2. data:
+    * [`32`:`channel_id`]
+    * [`8`:`id`]
+    * [`32`:`commitment_nonce_x_coordinate`]
+    * [`2`:`commitment_nonce_y_parity`]
+    * [`32`:`commitment_signature`]
+    * [`32`:`htlc_timeout_nonce_x_coordinate`]
+    * [`2`:`htlc_timeout_nonce_y_parity`]
+    * [`32`:`htlc_timeout_signature`]
+    * [`32`:`htlc_revoke_nonce_x_coordinate`]
+    * [`2`:`htlc_revoke_nonce_y_parity`]
+    * [`32`:`htlc_revoke_signature`]
+    * [`32`:`htlc_hashlock_nonce_x_coordinate`]
+    * [`2`:`htlc_hashlock_nonce_y_parity`]
+    * [`32`:`htlc_hashlock_signature`]
+
+
+#### Requirements
+
+The sender MUST set:
+  - `nonce_x_coordinate` and `nonce_y_parity`
+  must be a generator point scaled by the nonce the funder selected.
+
+The recipient:
+  - if the x and y coordinates are not a valid curve point:
+    - MUST fail the channel.
+
+
+### The `kernels_signed` Message
+
+The signatures of the remote party are checked and then the local part of the
+signatures sent back.
+
+1. type: XX (`kernels_signed`)
+2. data:
+    * [`32`:`channel_id`]
+    * [`8`:`id`]
+    * [`32`:`commitment_signature`]
+    * [`32`:`htlc_timeout_signature`]
+    * [`32`:`htlc_revoke_signature`]
+    * [`32`:`htlc_hashlock_signature`]
+
+
+#### Requirements
+
+
+### The `htlc_completed` Message
+
+The local node checks the signature of the remote and then is able to create
+the final signatures as well as the final kernels for all transactions.
+
+1. type: XX (`htlc_completed`)
+2. data:
+    * [`32`:`channel_id`]
+    * [`8`:`id`]
+    * [`32`:`commitment_final_sig`]
+    * [`32`:`htlc_timeout_final_sig`]
+    * [`32`:`htlc_revoke_final_sig`]
+    * [`32`:`htlc_hashlock_final_sig`]
+    * [`32`:`commitment_final_kernel`]
+    * [`32`:`htlc_timeout_final_kernel`]
+    * [`32`:`htlc_revoke_final_kernel`]
+    * [`32`:`htlc_hashlock_final_kernel`]
+
+
+#### Requirements
+
 
 ### Completing the Transition to the Updated State: `revoke_and_ack`
 
-Once the recipient of `commitment_signed` checks the signature and knows
+Once the recipient of `htlc_completed` checks the signatures and knows
 it has a valid new commitment transaction, it replies with the commitment
 preimage for the previous commitment transaction in a `revoke_and_ack`
 message.
 
 This message also implicitly serves as an acknowledgment of receipt
-of the `commitment_signed`, so this is a logical time for the `commitment_signed` sender
+of the `htlc_completed`, so this is a logical time for the `htlc_completed` sender
 to apply (to its own commitment) any pending updates it sent before
-that `commitment_signed`.
-
-The description of key derivation is in [BOLT #3](03-transactions.md#key-derivation).
+that `htlc_completed`.
 
 1. type: 133 (`revoke_and_ack`)
 2. data:
    * [`32`:`channel_id`]
-   * [`32`:`per_commitment_secret`]
-   * [`33`:`next_per_commitment_point`]
+   * [`32`:`old_commitment_secret`]
 
 #### Requirements
 
 A sending node:
-  - MUST set `per_commitment_secret` to the secret used to generate keys for
-  the previous commitment transaction.
-  - MUST set `next_per_commitment_point` to the values for its next commitment
-  transaction.
+  - MUST set `old_commitment_secret` to the secret used to generate the hashlock
+  of the old state.
 
 A receiving node:
-  - if `per_commitment_secret` does not generate the previous `per_commitment_point`:
+  - if `old_commitment_secret` does not solve the previous hashlock:
     - MUST fail the channel.
-  - if the `per_commitment_secret` was not generated by the protocol in [BOLT #3](03-transactions.md#per-commitment-secret-requirements):
-    - MAY fail the channel.
 
 A node:
   - MUST NOT broadcast old (revoked) commitment transactions,
@@ -1247,7 +1352,7 @@ A node:
 ### Updating Fees: `update_fee`
 
 An `update_fee` message is sent by the node which is paying the
-Bitcoin fee. Like any update, it's first committed to the receiver's
+fee. Like any update, it's first committed to the receiver's
 commitment transaction and then (once acknowledged) committed to the
 sender's. Unlike an HTLC, `update_fee` is never closed but simply
 replaced.
@@ -1256,10 +1361,10 @@ There is a possibility of a race, as the recipient can add new HTLCs
 before it receives the `update_fee`. Under this circumstance, the sender may
 not be able to afford the fee on its own commitment transaction, once the `update_fee`
 is finally acknowledged by the recipient. In this case, the fee will be less
-than the fee rate, as described in [BOLT #3](03-transactions.md#fee-payment).
+than the fee rate, as described in [BMW #3](03-transactions.md#fee-payment).
 
 The exact calculation used for deriving the fee from the fee rate is
-given in [BOLT #3](03-transactions.md#fee-calculation).
+given in [BMW #3](03-transactions.md#fee-calculation).
 
 1. type: 134 (`update_fee`)
 2. data:
@@ -1268,7 +1373,7 @@ given in [BOLT #3](03-transactions.md#fee-calculation).
 
 #### Requirements
 
-The node _responsible_ for paying the Bitcoin fee:
+The node _responsible_ for paying the fee:
   - SHOULD send `update_fee` to ensure the current fee rate is sufficient (by a
       significant margin) for timely processing of the commitment transaction.
 
@@ -1287,9 +1392,7 @@ A receiving node:
 
 #### Rationale
 
-Bitcoin fees are required for unilateral closes to be effective —
-particularly since there is no general method for the broadcasting node to use
-child-pays-for-parent to increase its effective fee.
+Fees are required for unilateral closes to be effective.
 
 Given the variance in fees, and the fact that the transaction may be
 spent in the future, it's a good idea for the fee payer to keep a good
@@ -1315,11 +1418,11 @@ explicit acknowledgments at that point.
 This is fairly straightforward in the case of channel establishment
 and close, where messages have an explicit order, but during normal
 operation, acknowledgments of updates are delayed until the
-`commitment_signed` / `revoke_and_ack` exchange; so it cannot be assumed
+`htlc_complete` / `revoke_and_ack` exchange; so it cannot be assumed
 that the updates have been received. This also means that the receiving
-node only needs to store updates upon receipt of `commitment_signed`.
+node only needs to store updates upon receipt of `htlc_complete`.
 
-Note that messages described in [BOLT #7](07-routing-gossip.md) are
+Note that messages described in [BMW #7](07-routing-gossip.md) are
 independent of particular channels; their transmission requirements
 are covered there, and besides being transmitted after `init` (as all
 messages are), they are independent of requirements here.
@@ -1329,8 +1432,8 @@ messages are), they are independent of requirements here.
    * [`32`:`channel_id`]
    * [`8`:`next_local_commitment_number`]
    * [`8`:`next_remote_revocation_number`]
-   * [`32`:`your_last_per_commitment_secret`] (option_data_loss_protect)
-   * [`33`:`my_current_per_commitment_point`] (option_data_loss_protect)
+   * [`32`:`your_last_commitment_secret`] (option_data_loss_protect)
+   * [`33`:`my_current_revokation_hash`] (option_data_loss_protect)
 
 `next_local_commitment_number`: A commitment number is a 48-bit
 incrementing counter for each commitment transaction; counters
@@ -1359,7 +1462,7 @@ A node:
   - MUST handle continuation of a previous channel on a new encrypted transport.
   - upon disconnection:
     - MUST reverse any uncommitted updates sent by the other side (i.e. all
-    messages beginning with `update_` for which no `commitment_signed` has
+    messages beginning with `update_` for which no `htlc_complete` has
     been received).
       - Note: a node MAY have already used the `payment_preimage` value from
     the `update_fulfill_htlc`, so the effects of `update_fulfill_htlc` are not
