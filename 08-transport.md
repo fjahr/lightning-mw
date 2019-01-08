@@ -769,18 +769,10 @@ two key rotations:
     output 1000: 0x4a2f3cc3b5e78ddb83dcb426d9863d9d9a723b0337c89dd0b005d89f8d3c05c52b76b29b740f09
     output 1001: 0x2ecd8c8a5629d0d02ab457a0fdd0f7b90a192cd46be5ecb6ca570bfc5e268338b1a16cf4ef2d36
 
-# Acknowledgments
-
-TODO(roasbeef); fin
-
 # References
 1. <a id="reference-1">https://tools.ietf.org/html/rfc7539</a>
 2. <a id="reference-2">http://noiseprotocol.org/noise.html</a>
 3. <a id="reference-3">https://tools.ietf.org/html/rfc5869</a>
-
-# Authors
-
-FIXME
 
 ![Creative Commons License](https://i.creativecommons.org/l/by/4.0/88x31.png "License CC-BY")
 <br>

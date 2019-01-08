@@ -311,10 +311,6 @@ rotations as specified within [BMW #8](08-transport.md).
 
 1. <a id="reference-2">http://www.unicode.org/charts/PDF/U2600.pdf</a>
 
-## Authors
-
-[ FIXME: Insert Author List ]
-
 ![Creative Commons License](https://i.creativecommons.org/l/by/4.0/88x31.png "License CC-BY")
 <br>
 This work is licensed under a [Creative Commons Attribution 4.0 International License](http://creativecommons.org/licenses/by/4.0/).

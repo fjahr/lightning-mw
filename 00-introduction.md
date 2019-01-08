@@ -102,7 +102,8 @@ the payer can later prove successful payment.
 FIXME: Update these definitions according to changes in other BMWs.
 
 * *Announcement*:
-   * A gossip message sent between *peers* intended to aid the discovery of a *channel* or a *node*.
+   * A gossip message sent between *peers* intended to aid the discovery of
+   a *channel* or a *node*.
 
 * `chain_hash`:
    * The uniquely identifying hash of the target blockchain (usually the genesis hash).
@@ -118,7 +119,8 @@ FIXME: Update these definitions according to changes in other BMWs.
    * _See related: route_
 
 * *Closing transaction*:
-   * A transaction generated as part of a _mutual close_. A closing transaction is similar to a _commitment transaction_, but with no pending payments.
+   * A transaction generated as part of a _mutual close_. A closing transaction
+   is similar to a _commitment transaction_, but with no pending payments.
    * _See related: commitment transaction, funding transaction, penalty transaction_
 
 * *Commitment number*:
@@ -141,12 +143,15 @@ FIXME: Update these definitions according to changes in other BMWs.
    Each *peer* holds the other peer's signature for this transaction, so that each
    always has a commitment transaction that it can spend. After a new
    commitment transaction is negotiated, the old one is *revoked*.
-   * _See parts: commitment number, commitment revocation private key, HTLC, per-commitment secret, outpoint_
+   * _See parts: commitment number, commitment revocation private key, HTLC,
+   per-commitment secret, outpoint_
    * _See related: closing transaction, funding transaction, penalty transaction_
    * _See types: revoked commitment transaction_
 
 * *Final node*:
-   * The final recipient of a packet that is routing a payment from an _origin node_ through some number of _hops_. It is also the final *receiving peer* in a chain.
+   * The final recipient of a packet that is routing a payment from an
+   _origin node_ through some number of _hops_. It is also the final *receiving peer*
+   in a chain.
    * _See category: node_
    * _See related: origin node, processing node_
 
@@ -156,7 +161,8 @@ FIXME: Update these definitions according to changes in other BMWs.
    * _See related: closing transaction, commitment transaction, penalty transaction_
 
 * *Hop*:
-   * A *node*. Generally, an intermediate node lying between an *origin node* and a *final node*.
+   * A *node*. Generally, an intermediate node lying between an *origin node* and
+   a *final node*.
    * _See category: node_
 
 * *HTLC*: Hashed Time Locked Contract.
@@ -194,12 +200,14 @@ FIXME: Update these definitions according to changes in other BMWs.
    * _See types: final node, hop, origin node, processing node, receiving node, sending node_
 
 * *Origin node*:
-   * The _node_ that originates a packet that will route a payment through some number of _hops_ to a _final node_. It is also the first _sending peer_ in a chain.
+   * The _node_ that originates a packet that will route a payment through some number
+   of _hops_ to a _final node_. It is also the first _sending peer_ in a chain.
    * _See category: node_
    * _See related: final node, processing node_
 
 * *Outpoint*:
-  * A transaction hash and output index that uniquely identify an unspent transaction output. Needed to compose a new transaction, as an input.
+  * A transaction hash and output index that uniquely identify an unspent transaction
+  output. Needed to compose a new transaction, as an input.
   * _See related: funding transaction, commitment transaction_
 
 * *Payment hash*:
@@ -238,7 +246,10 @@ FIXME: Update these definitions according to changes in other BMWs.
    * _See derivation: commitment revocation private key_
 
 * *Processing node*:
-   * A *node* that is processing a packet that originated with an *origin node* and that is being sent toward a *final node* in order to route a payment. It acts as a _receiving peer_ to receive the message, then a _sending peer_ to send on the packet.
+   * A *node* that is processing a packet that originated with an *origin node*
+   and that is being sent toward a *final node* in order to route a payment. It
+   acts as a _receiving peer_ to receive the message, then a _sending peer_ to
+   send on the packet.
    * _See category: node_
    * _See related: final node, origin node_
 
@@ -253,7 +264,8 @@ FIXME: Update these definitions according to changes in other BMWs.
    * _See related: sending peer_
 
 * *Revoked commitment transaction*:
-   * An old *commitment transaction* that has been revoked because a new commitment transaction has been negotiated.
+   * An old *commitment transaction* that has been revoked because a new
+   commitment transaction has been negotiated.
    * _See category: commitment transaction_
 
 * *Revoked transaction close*:
@@ -284,10 +296,6 @@ FIXME: Update these definitions according to changes in other BMWs.
     commitment is broadcast cannot access its own outputs for some
     previously-negotiated duration.
    * _See related: mutual close, revoked transaction close_
-
-## Authors
-
-[ FIXME: Insert Author List ]
 
 ![Creative Commons License](https://i.creativecommons.org/l/by/4.0/88x31.png "License CC-BY")
 <br>
