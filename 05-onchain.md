@@ -39,12 +39,6 @@ encounters any of the above situations, on-chain.
       * [HTLC Output Handling: Remote Commitment, Remote Offers](#htlc-output-handling-remote-commitment-remote-offers)
   * [Revoked Transaction Close Handling](#revoked-transaction-close-handling)
 	  * [Penalty Transactions Weight Calculation](#penalty-transactions-weight-calculation)
-  * [General Requirements](#general-requirements)
-  * [Appendix A: Expected Weights](#appendix-a-expected-weights)
-	* [Expected Weight of the `to_local` Penalty Transaction Witness](#expected-weight-of-the-to-local-penalty-transaction-witness)
-	* [Expected Weight of the `offered_htlc` Penalty Transaction Witness](#expected-weight-of-the-offered-htlc-penalty-transaction-witness)
-	* [Expected Weight of the `accepted_htlc` Penalty Transaction Witness](#expected-weight-of-the-accepted-htlc-penalty-transaction-witness)
-  * [Authors](#authors)
 
 # General Nomenclature
 
@@ -213,7 +207,7 @@ because they were trimmed as dust, or because the transaction has only been
 partially committed.
 
 The HTLC has *timed out* once the depth of the latest block is equal to
-or greater than the HTLC `cltv_expiry`.
+or greater than the HTLC `locktime_expiry`.
 
 ### Requirements
 
@@ -366,7 +360,7 @@ Each HTLC output can only be spent by the *offerer*, after it's timed out, or by
 the *recipient*, if it has the payment preimage.
 
 The HTLC output has *timed out* once the depth of the latest block is equal to
-or greater than the HTLC `cltv_expiry`.
+or greater than the HTLC `locktime_expiry`.
 
 There can be HTLCs which are not represented by any outputs: either
 because the outputs were trimmed as dust or because the remote node has two

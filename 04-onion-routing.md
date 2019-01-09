@@ -187,7 +187,7 @@ The `realm` byte determines the format of the `per_hop` field; currently, only `
 2. data:
    * [`8`:`short_channel_id`]
    * [`8`:`amt_to_forward`]
-   * [`4`:`outgoing_cltv_value`]
+   * [`4`:`outgoing_locktime_value`]
    * [`12`:`padding`]
 
 Using the `per_hop` field, the origin node is able to precisely specify the path and
@@ -203,7 +203,7 @@ ill-crafted HTLC.
 
 Field descriptions:
 
-   * `short_channel_id`: The ID of the outgoing channel used to route the 
+   * `short_channel_id`: The ID of the outgoing channel used to route the
       message; the receiving peer should operate the other end of this channel.
 
    * `amt_to_forward`: The amount to forward to the next
@@ -221,20 +221,20 @@ Field descriptions:
      schema (as described in [BMW #7](07-routing-gossip.md#htlc-fees))
      or is 0, if the processing node is the final node.
 
-   * `outgoing_cltv_value`: The CLTV value that the _outgoing_ HTLC carrying
+   * `outgoing_locktime_value`: The locktime value that the _outgoing_ HTLC carrying
      the packet should have.
 
-        cltv_expiry - cltv_expiry_delta >= outgoing_cltv_value
+        locktime_expiry - locktime_expiry_delta >= outgoing_locktime_value
 
      Inclusion of this field allows a hop to both authenticate the information
      specified by the origin node, and the parameters of the HTLC forwarded,
-	 and ensure the origin node is using the current `cltv_expiry_delta` value.
-     If there is no next hop, `cltv_expiry_delta` is 0.
+     and ensure the origin node is using the current `locktime_expiry_delta` value.
+     If there is no next hop, `locktime_expiry_delta` is 0.
      If the values don't correspond, then the HTLC should be failed and rejected, as
      this indicates that either a forwarding node has tampered with the intended HTLC
-     values or that the origin node has an obsolete `cltv_expiry_delta` value.
+     values or that the origin node has an obsolete `locktime_expiry_delta` value.
      The hop MUST be consistent in responding to an unexpected
-     `outgoing_cltv_value`, whether it is the final node or not, to avoid
+     `outgoing_locktime_value`, whether it is the final node or not, to avoid
      leaking its position in the route.
 
    * `padding`: This field is for future use and also for ensuring that future non-0-`realm`
@@ -291,7 +291,7 @@ using an alternate channel.
 
 When building the route, the origin node MUST use a payload for
 the final node with the following values:
-* `outgoing_cltv_value`: set to the final expiry specified by the recipient
+* `outgoing_locktime_value`: set to the final expiry specified by the recipient
 * `amt_to_forward`: set to the final amount specified by the recipient
 
 This allows the final node to check these values and return errors if needed,
@@ -389,7 +389,7 @@ following operations:
  - The _rho_-key and _mu_-key are generated using the hop's shared secret.
  - The `hops_data` field is right-shifted by 65 bytes, discarding the last 65
  bytes that exceed its 1300-byte size.
- - The `version`, `short_channel_id`, `amt_to_forward`, `outgoing_cltv_value`,
+ - The `version`, `short_channel_id`, `amt_to_forward`, `outgoing_locktime_value`,
    `padding`, and `HMAC` are copied into the following 65 bytes.
  - The _rho_-key is used to generate 1300 bytes of pseudo-random byte stream
  which is then applied, with `XOR`, to the `hops_data` field.
@@ -502,7 +502,7 @@ The above requirements prevent any hop along the route from retrying a payment
 multiple times, in an attempt to track a payment's progress via traffic
 analysis. Note that disabling such probing could be accomplished using a log of
 previous shared secrets or HMACs, which could be forgotten once the HTLC would
-not be accepted anyway (i.e. after `outgoing_cltv_value` has passed). Such a log
+not be accepted anyway (i.e. after `outgoing_locktime_value` has passed). Such a log
 may use a probabilistic data structure, but it MUST rate-limit commitments as
 necessary, in order to constrain the worst-case storage requirements or false
 positives of this log.
@@ -782,24 +782,24 @@ the processing node.
 The fee amount was below that required by the channel from the
 processing node.
 
-1. type: UPDATE|13 (`incorrect_cltv_expiry`)
+1. type: UPDATE|13 (`incorrect_locktime_expiry`)
 2. data:
-   * [`4`:`cltv_expiry`]
+   * [`4`:`locktime_expiry`]
    * [`2`:`len`]
    * [`len`:`channel_update`]
 
-The `cltv_expiry` does not comply with the `cltv_expiry_delta` required by
+The `locktime_expiry` does not comply with the `locktime_expiry_delta` required by
 the channel from the processing node: it does not satisfy the following
 requirement:
 
-        cltv_expiry - cltv_expiry_delta >= outgoing_cltv_value
+        locktime_expiry - locktime_expiry_delta >= outgoing_locktime_value
 
 1. type: UPDATE|14 (`expiry_too_soon`)
 2. data:
    * [`2`:`len`]
    * [`len`:`channel_update`]
 
-The CLTV expiry is too close to the current block height for safe
+The locktime expiry is too close to the current block height for safe
 handling by the processing node.
 
 1. type: PERM|15 (`incorrect_or_unknown_payment_details`)
@@ -819,14 +819,14 @@ potential destinations and check the response.
 
 1. type: 17 (`final_expiry_too_soon`)
 
-The CLTV expiry is too close to the current block height for safe
+The locktime expiry is too close to the current block height for safe
 handling by the final node.
 
-1. type: 18 (`final_incorrect_cltv_expiry`)
+1. type: 18 (`final_incorrect_locktime_expiry`)
 2. data:
-   * [`4`:`cltv_expiry`]
+   * [`4`:`locktime_expiry`]
 
-The CLTV expiry in the HTLC doesn't match the value in the onion.
+The locktime expiry in the HTLC doesn't match the value in the onion.
 
 1. type: 19 (`final_incorrect_htlc_amount`)
 2. data:
@@ -844,7 +844,7 @@ The channel from the processing node has been disabled.
 
 1. type: 21 (`expiry_too_far`)
 
-The CLTV expiry in the HTLC is too far in the future.
+The locktime expiry in the HTLC is too far in the future.
 
 ### Requirements
 
@@ -892,15 +892,15 @@ A _forwarding node_ MAY, but a _final node_ MUST NOT:
     - report the amount of the incoming HTLC and the current channel setting for
     the outgoing channel.
     - return a `fee_insufficient` error.
- -  if the incoming `cltv_expiry` minus the `outgoing_cltv_value` is below the
-    `cltv_expiry_delta` for the outgoing channel:
-    - report the `cltv_expiry` and the current channel setting for the outgoing
+ -  if the incoming `locktime_expiry` minus the `outgoing_locktime_value` is below the
+    `locktime_expiry_delta` for the outgoing channel:
+    - report the `locktime_expiry` and the current channel setting for the outgoing
     channel.
-    - return an `incorrect_cltv_expiry` error.
-  - if the `cltv_expiry` is unreasonably near the present:
+    - return an `incorrect_locktime_expiry` error.
+  - if the `locktime_expiry` is unreasonably near the present:
     - report the current channel setting for the outgoing channel.
     - return an `expiry_too_soon` error.
-  - if the `cltv_expiry` is unreasonably far in the future:
+  - if the `locktime_expiry` is unreasonably far in the future:
     - return an `expiry_too_far` error.
   - if the channel is disabled:
     - report the current channel setting for the outgoing channel.
@@ -921,12 +921,12 @@ An _intermediate hop_ MUST NOT, but the _final node_:
     - SHOULD return an `incorrect_payment_amount` error.
       - Note: this allows the origin node to reduce information leakage by
       altering the amount while not allowing for accidental gross overpayment.
-  - if the `cltv_expiry` value is unreasonably near the present:
+  - if the `locktime_expiry` value is unreasonably near the present:
     - MUST fail the HTLC.
     - MUST return a `final_expiry_too_soon` error.
-  - if the `outgoing_cltv_value` does NOT correspond with the `cltv_expiry` from
+  - if the `outgoing_locktime_value` does NOT correspond with the `locktime_expiry` from
   the final node's HTLC:
-    - MUST return `final_incorrect_cltv_expiry` error.
+    - MUST return `final_incorrect_locktime_expiry` error.
   - if the `amt_to_forward` is greater than the `incoming_htlc_amt` from the
   final node's HTLC:
     - MUST return a `final_incorrect_htlc_amount` error.
@@ -989,10 +989,10 @@ of packet creation:
 
 The HMAC is omitted in the following `hop_data`, since it's likely to be filled
 by the onion construction. Hence, the values below are the `realm`, the
-`short_channel_id`, the `amt_to_forward`, the `outgoing_cltv`, and the 16-byte
+`short_channel_id`, the `amt_to_forward`, the `outgoing_locktime`, and the 16-byte
 `padding`. They were initialized by byte-filling the `short_channel_id` to the
 each hop's respective position in the route and then, starting at 0, setting
-`amt_to_forward` and `outgoing_cltv` to the same route position.
+`amt_to_forward` and `outgoing_locktime` to the same route position.
 
 	hop_payload[0] = 0x000000000000000000000000000000000000000000000000000000000000000000
 	hop_payload[1] = 0x000101010101010101000000000000000100000001000000000000000000000000

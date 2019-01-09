@@ -397,7 +397,7 @@ of *relaying* payments, not *sending* payments. When making a payment
  `B` -> `C` (announced by `B`) and `C` -> `D` (announced by `C`) will
  come into play. When building the route, amounts and expiries for HTLCs need
  to be calculated backward from the destination to the source. The exact initial
- value for `amount` and the minimal value for `cltv_expiry`, to be used for
+ value for `amount` and the minimal value for `locktime_expiry`, to be used for
  the last HTLC in the route, are provided in the payment request
  (see [BMW #11](11-payment-encoding.md#tagged-fields)).
 
@@ -409,7 +409,7 @@ of *relaying* payments, not *sending* payments. When making a payment
     * [`4`:`timestamp`]
     * [`1`:`message_flags`]
     * [`1`:`channel_flags`]
-    * [`2`:`cltv_expiry_delta`]
+    * [`2`:`locktime_expiry_delta`]
     * [`8`:`htlc_minimum`]
     * [`4`:`fee_base`]
     * [`4`:`fee_proportional_millionths`]
@@ -430,9 +430,9 @@ fields in the `channel_update` message:
 
 | Bit Position  | Name                      | Field                            |
 | ------------- | ------------------------- | -------------------------------- |
-| 0             | `option_channel_htlc_max` | `htlc_maximum_msat`              |
+| 0             | `option_channel_htlc_max` | `htlc_maximum`              |
 
-Note that the `htlc_maximum_msat` field is static in the current
+Note that the `htlc_maximum` field is static in the current
 protocol over the life of the channel: it is *not* designed to be
 indicative of real-time channel capacity in each direction, which
 would be both a massive data leak and uselessly spam the network (it
@@ -481,8 +481,8 @@ The origin node:
   - MUST set `timestamp` to greater than 0, AND to greater than any
   previously-sent `channel_update` for this `short_channel_id`.
     - SHOULD base `timestamp` on a UNIX timestamp.
-  - MUST set `cltv_expiry_delta` to the number of blocks it will subtract from
-  an incoming HTLC's `cltv_expiry`.
+  - MUST set `locktime_expiry_delta` to the number of blocks it will subtract from
+  an incoming HTLC's `locktime_expiry`.
   - MUST set `htlc_minimum` to the minimum HTLC value
   that the channel peer will accept.
   - MUST set `fee_base` to the base fee it will charge
@@ -822,7 +822,7 @@ allows for more refined synchronization.
 
 The origin node:
   - SHOULD accept HTLCs that pay a fee equal to or greater than:
-    - fee_base_msat + ( amount_to_forward * fee_proportional_millionths / 1000000 )
+    - fee_base + ( amount_to_forward * fee_proportional_millionths / 1000000 )
   - SHOULD accept HTLCs that pay an older fee, for some reasonable time after
   sending `channel_update`.
     - Note: this allows for any propagation delay.
@@ -867,23 +867,23 @@ view would be forwarded to other peers indefinitely.
 
 ## Recommendations for Routing
 
-When calculating a route for an HTLC, both the `cltv_expiry_delta` and the fee
-need to be considered: the `cltv_expiry_delta` contributes to the time that
+When calculating a route for an HTLC, both the `locktime_expiry_delta` and the fee
+need to be considered: the `locktime_expiry_delta` contributes to the time that
 funds will be unavailable in the event of a worst-case failure. The relationship
 between these two attributes is unclear, as it depends on the reliability of the
 nodes involved.
 
 If a route is computed by simply routing to the intended recipient and summing
-the `cltv_expiry_delta`s, then it's possible for intermediate nodes to guess
-their position in the route. Knowing the CLTV of the HTLC, the surrounding
-network topology, and the `cltv_expiry_delta`s gives an attacker a way to guess
+the `locktime_expiry_delta`s, then it's possible for intermediate nodes to guess
+their position in the route. Knowing the locktime of the HTLC, the surrounding
+network topology, and the `locktime_expiry_delta`s gives an attacker a way to guess
 the intended recipient. Therefore, it's highly desirable to add a random offset
-to the CLTV that the intended recipient will receive, which bumps all CLTVs
+to the locktime that the intended recipient will receive, which bumps all locktimes
 along the route.
 
 In order to create a plausible offset, the origin node MAY start a limited
 random walk on the graph, starting from the intended recipient and summing the
-`cltv_expiry_delta`s, and use the resulting sum as the offset.
+`locktime_expiry_delta`s, and use the resulting sum as the offset.
 This effectively creates a _shadow route extension_ to the actual route and
 provides better protection against this attack vector than simply picking a
 random offset would.
@@ -907,7 +907,7 @@ A     C
    D
 ```
 
-Each advertises the following `cltv_expiry_delta` on its end of every
+Each advertises the following `locktime_expiry_delta` on its end of every
 channel:
 
 1. A: 10 blocks
@@ -915,7 +915,7 @@ channel:
 3. C: 30 blocks
 4. D: 40 blocks
 
-C also uses a `min_final_cltv_expiry` of 9 (the default) when requesting
+C also uses a `min_final_locktime_expiry` of 9 (the default) when requesting
 payments.
 
 Also, each node has a set fee scheme that it uses for each of its
@@ -928,27 +928,27 @@ channels:
 
 The network will see eight `channel_update` messages:
 
-1. A->B: `cltv_expiry_delta` = 10, `fee_base` = 100, `fee_proportional_millionths` = 1000
-1. A->D: `cltv_expiry_delta` = 10, `fee_base` = 100, `fee_proportional_millionths` = 1000
-1. B->A: `cltv_expiry_delta` = 20, `fee_base` = 200, `fee_proportional_millionths` = 2000
-1. D->A: `cltv_expiry_delta` = 40, `fee_base` = 400, `fee_proportional_millionths` = 4000
-1. B->C: `cltv_expiry_delta` = 20, `fee_base` = 200, `fee_proportional_millionths` = 2000
-1. D->C: `cltv_expiry_delta` = 40, `fee_base` = 400, `fee_proportional_millionths` = 4000
-1. C->B: `cltv_expiry_delta` = 30, `fee_base` = 300, `fee_proportional_millionths` = 3000
-1. C->D: `cltv_expiry_delta` = 30, `fee_base` = 300, `fee_proportional_millionths` = 3000
+1. A->B: `locktime_expiry_delta` = 10, `fee_base` = 100, `fee_proportional_millionths` = 1000
+1. A->D: `locktime_expiry_delta` = 10, `fee_base` = 100, `fee_proportional_millionths` = 1000
+1. B->A: `locktime_expiry_delta` = 20, `fee_base` = 200, `fee_proportional_millionths` = 2000
+1. D->A: `locktime_expiry_delta` = 40, `fee_base` = 400, `fee_proportional_millionths` = 4000
+1. B->C: `locktime_expiry_delta` = 20, `fee_base` = 200, `fee_proportional_millionths` = 2000
+1. D->C: `locktime_expiry_delta` = 40, `fee_base` = 400, `fee_proportional_millionths` = 4000
+1. C->B: `locktime_expiry_delta` = 30, `fee_base` = 300, `fee_proportional_millionths` = 3000
+1. C->D: `locktime_expiry_delta` = 30, `fee_base` = 300, `fee_proportional_millionths` = 3000
 
 **B->C.** If B were to send 4,999,999 millicoins directly to C, it would
-neither charge itself a fee nor add its own `cltv_expiry_delta`, so it would
-use C's requested `min_final_cltv_expiry` of 9. Presumably it would also add a
-_shadow route_ to give an extra CLTV of 42. Additionally, it could add extra
-CLTV deltas at other hops, as these values represent a minimum, but chooses not
+neither charge itself a fee nor add its own `locktime_expiry_delta`, so it would
+use C's requested `min_final_locktime_expiry` of 9. Presumably it would also add a
+_shadow route_ to give an extra locktime of 42. Additionally, it could add extra
+locktime deltas at other hops, as these values represent a minimum, but chooses not
 to do so here, for the sake of simplicity:
 
    * `amount`: 4999999
-   * `cltv_expiry`: current-block-height + 9 + 42
+   * `locktime_expiry`: current-block-height + 9 + 42
    * `onion_routing_packet`:
      * `amt_to_forward` = 4999999
-     * `outgoing_cltv_value` = current-block-height + 9 + 42
+     * `outgoing_locktime_value` = current-block-height + 9 + 42
 
 **A->B->C.** If A were to send 4,999,999 millicoins to C via B, it needs to
 pay B the fee it specified in the B->C `channel_update`, calculated as
@@ -958,15 +958,15 @@ per [HTLC Fees](#htlc-fees):
 
 	200 + ( 4999999 * 2000 / 1000000 ) = 10199
 
-Similarly, it would need to add B->C's `channel_update` `cltv_expiry` (20), C's
-requested `min_final_cltv_expiry` (9), and the cost for the _shadow route_ (42).
+Similarly, it would need to add B->C's `channel_update` `locktime_expiry` (20), C's
+requested `min_final_locktime_expiry` (9), and the cost for the _shadow route_ (42).
 Thus, A->B's `update_add_htlc` message would be:
 
    * `amount`: 5010198
-   * `cltv_expiry`: current-block-height + 20 + 9 + 42
+   * `locktime_expiry`: current-block-height + 20 + 9 + 42
    * `onion_routing_packet`:
      * `amt_to_forward` = 4999999
-     * `outgoing_cltv_value` = current-block-height + 9 + 42
+     * `outgoing_locktime_value` = current-block-height + 9 + 42
 
 B->C's `update_add_htlc` would be the same as B->C's direct payment above.
 
@@ -974,10 +974,10 @@ B->C's `update_add_htlc` would be the same as B->C's direct payment above.
 A->D's `update_add_htlc` message would be:
 
    * `amount`: 5020398
-   * `cltv_expiry`: current-block-height + 40 + 9 + 42
+   * `locktime_expiry`: current-block-height + 40 + 9 + 42
    * `onion_routing_packet`:
 	 * `amt_to_forward` = 4999999
-     * `outgoing_cltv_value` = current-block-height + 9 + 42
+     * `outgoing_locktime_value` = current-block-height + 9 + 42
 
 And D->C's `update_add_htlc` would again be the same as B->C's direct payment
 above.

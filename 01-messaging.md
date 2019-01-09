@@ -276,8 +276,7 @@ a convenient cutoff for `num_pong_bytes` to indicate that no reply should be sen
 
 Connections between nodes within the network may be long lived, as payment
 channels have an indefinite lifetime. However, it's likely that
-no new data will be
-exchanged for a
+no new data will be exchanged for a
 significant portion of a connection's lifetime. Also, on several platforms it's possible that Lightning
 clients will be put to sleep without prior warning. Hence, a
 distinct `ping` message is used, in order to probe for the liveness of the connection on
@@ -290,8 +289,7 @@ against packet and timing analysis — as nodes can fake the traffic patterns of
 typical exchanges without applying any true updates to their respective
 channels.
 
-When combined with the onion routing protocol defined in
-[BMW #4](04-onion-routing.md),
+When combined with the onion routing protocol defined in [BMW #4](04-onion-routing.md),
 careful statistically driven synthetic traffic can serve to further bolster the
 privacy of participants within the network.
 
@@ -302,10 +300,6 @@ every message maximally).
 
 Finally, the usage of periodic `ping` messages serves to promote frequent key
 rotations as specified within [BMW #8](08-transport.md).
-
-## Acknowledgments
-
-[ TODO: (roasbeef); fin ]
 
 ## References
 
