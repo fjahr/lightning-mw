@@ -427,12 +427,12 @@ Breakdown:
     * `q20q82gphp2nflc7jtzrcazrra7wwgzxqc8u7754cdlpfrmccae92qgzqvzq2ps8pqqqqqqpqqqqq9qqqvpeuqafqxu92d8lr6fvg0r5gv0heeeqgcrqlnm6jhphu9y00rrhy4grqszsvpcgpy9qqqqqqgqqqqq7qqzq`: 
       * pubkey: `029e03a901b85534ff1e92c43c74431f7ce72046060fcf7a95c37e148f78c77255`
       * `short_channel_id`: 0102030405060708
-      * `fee_base`: 1 millimw-coin
+      * `fee_base`: 1 milli-mw-coin
       * `fee_proportional_millionths`: 20
       * `locktime_expiry_delta`: 3
       * pubkey: `039e03a901b85534ff1e92c43c74431f7ce72046060fcf7a95c37e148f78c77255`
       * `short_channel_id`: 030405060708090a
-      * `fee_base`: 2 millimw-coin
+      * `fee_base`: 2 milli-mw-coin
       * `fee_proportional_millionths`: 30
       * `locktime_expiry_delta`: 4
 * `j9n4evl6mr5aj9f58zp6fyjzup6ywn3x6sk8akg5v4tgn2q8g4fhx05wf6juaxu9760yp46454gpg5mtzgerlzezqcqvjnhjh8z3g2qq`: signature
