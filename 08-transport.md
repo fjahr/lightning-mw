@@ -27,9 +27,6 @@ of a node.
     * [Initiator Tests](#initiator-tests)
     * [Responder Tests](#responder-tests)
     * [Message Encryption Tests](#message-encryption-tests)
-  * [Acknowledgments](#acknowledgments)
-  * [References](#references)
-  * [Authors](#authors)
 
 ## Cryptographic Messaging Overview
 
