@@ -1201,7 +1201,7 @@ The recipient:
 ### The `transactions_created` Message
 
 This message acknowledges that the transactions are all complete, thus
-signalling to start the process of creating the transaction kernels.
+signaling to start the process of creating the transaction kernels.
 For the kernels the selected nonces and transactions are sent along.
 
 1. type: XX (`transactions_created`)
