@@ -33,7 +33,7 @@ transaction, the commitment transactions, and the HTLC transactions.
 ## Funding Transaction
 
 The funding transaction is a 2-of-2 multisig transaction that is constructed in
-cooperation between the funder and the fundee (see BMW #2) and then commited
+cooperation between the funder and the fundee (see BMW #2) and then committed
 to the blockchain.
 
 ## Commitment Transaction
@@ -73,7 +73,7 @@ spending and only allows the local participant to redeem after the
 `to_self_delay` period has passed.
 2. The penalty transaction that allows the remote participant to take
 this output as well if the local participant tries to cheat by broadcasting
-an old state. This transaction can only be used with a revokation key
+an old state. This transaction can only be used with a revocation key
 (a hashlock).
 
 #### `to_remote` Output

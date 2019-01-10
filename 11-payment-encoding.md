@@ -491,7 +491,7 @@ Breakdown:
 > lnmw20m1pvjluezhp58yjmdan79s6qqdhdzgynm4zwqd5d7xmw5fk98klysy043l2ahrqspp5qqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypqfp4qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q28j0v3rwgy9pvjnd48ee2pl8xrpxysd5g44td63g6xcjcu003j3qe8878hluqlvl3km8rm92f5stamd3jw763n3hck0ct7p8wwj463cql26ava
 
 * `lnmw`: prefix
-* `20m`: amount (20 milli-mwcoin)
+* `20m`: amount (20 milli-mw-coin)
 * `1`: Bech32 separator
 * `pvjluez`: timestamp (1496314658)
 * `h`: tagged field: hash of description...
