@@ -39,7 +39,7 @@ transaction and both versions of the commitment transaction in collaboration
 with the fundee.
 
 The fundee picks a blinding factor and sends it to the funder with `blinding_selected`.
-The funder builds the commitment using the fundees blinding factor and sends
+The funder builds the commitment using the fundee's blinding factor and sends
 it to fundee by sending `commitment_created`. Using the commitment the fundee
 builds a range proof for the funding amount and sends it to the funder as
 `proof_created`. The funder then also creates their own range proof and
@@ -48,7 +48,7 @@ output which the funder adds to the rest of the outputs of the transaction
 she has created, then sends it to the fundee with `funding_created`.
 
 The fundee start the construction of the kernel by building the message (including
-fee and lock height), the schnorr challenge and their side of the signature and
+fee and lock height), the Schnorr challenge and their side of the signature and
 sending it all to the funder in `kernel_created`. The funder can check the
 challenge herself and then sends back her side of the signature with the
 `kernel_signed` message. At this point the fundee has the final kernel and
@@ -401,7 +401,7 @@ The recipient:
 ### The `funding_created` Message
 
 This message acknowledges that the funding transaction is complete, thus
-signalling to the fundee to start the process of creating the transaction
+signaling to the fundee to start the process of creating the transaction
 kernel. She sends along the transaction and a random nonce.
 
 1. type: XX (`funding_created`)
