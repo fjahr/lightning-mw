@@ -130,21 +130,19 @@ FIXME: Update these definitions according to changes in other BMWs.
    * _See related: closing transaction, funding transaction, penalty transaction_
 
 * *Commitment revocation private key*:
-   * Every *commitment transaction* has a unique commitment revocation private-key
+   * Every *commitment transaction* has a unique commitment revocation pre-image
     value that allows the other *peer* to spend all outputs
-    immediately: revealing this key is how old commitment
+    immediately: revealing this value is how old commitment
     transactions are revoked. To support revocation, each output of the
-    commitment transaction refers to the commitment revocation public key.
+    commitment transaction refers to the commitment revocation image.
    * _See container: commitment transaction_
-   * _See originator: per-commitment secret_
 
 * *Commitment transaction*:
    * A transaction that spends the *funding transaction*.
    Each *peer* holds the other peer's signature for this transaction, so that each
    always has a commitment transaction that it can spend. After a new
    commitment transaction is negotiated, the old one is *revoked*.
-   * _See parts: commitment number, commitment revocation private key, HTLC,
-   per-commitment secret, outpoint_
+   * _See parts: commitment number, HTLC, outpoint_
    * _See related: closing transaction, funding transaction, penalty transaction_
    * _See types: revoked commitment transaction_
 
@@ -184,9 +182,6 @@ FIXME: Update these definitions according to changes in other BMWs.
      compulsory support for features. Even numbers indicate that both endpoints
      MUST support the feature in question, while odd numbers indicate
      that the feature MAY be disregarded by the other endpoint.
-
-* *MSAT*:
-   * A millisatoshi, often used as a field name.
 
 * *Mutual close*:
    * A cooperative close of a *channel*, accomplished by broadcasting an unconditional
@@ -237,13 +232,6 @@ FIXME: Update these definitions according to changes in other BMWs.
     if the other peer tries to "cheat" by broadcasting a *revoked
     commitment transaction*.
    * _See related: closing transaction, commitment transaction, funding transaction_
-
-* *Per-commitment secret*:
-   * Every *commitment transaction* derives its keys from a per-commitment secret,
-     which is generated such that the series of per-commitment secrets
-     for all previous commitments can be stored compactly.
-   * _See container: commitment transaction_
-   * _See derivation: commitment revocation private key_
 
 * *Processing node*:
    * A *node* that is processing a packet that originated with an *origin node*
