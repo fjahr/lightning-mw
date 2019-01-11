@@ -32,13 +32,12 @@ operation, and closing.
 
 After authenticating and initializing a connection ([BMW #8](08-transport.md)
 and [BMW #1](01-messaging.md#the-init-message), respectively), channel establishment may begin.
-This consists of the funding node (funder) sending an `open_channel` message,
-followed by the responding node (fundee) sending `accept_channel`. With the
+This consists of the funding node (funder/A) sending an `open_channel` message,
+followed by the responding node (fundee/B) sending `accept_channel`. With the
 channel parameters locked in, the funder is able to create the funding
 transaction and both versions of the commitment transaction in collaboration
 with the fundee.
 
-The fundee picks a blinding factor and sends it to the funder with `blinding_selected`.
 The funder builds the commitment using the fundee's blinding factor and sends
 it to fundee by sending `commitment_created`. Using the commitment the fundee
 builds a range proof for the funding amount and sends it to the funder as
@@ -65,18 +64,17 @@ in [BMW #3](03-transactions.md#bolt-3-bitcoin-transaction-and-script-formats).
         |       |--(1)---  open_channel  ----->|       |
         |       |<-(2)--  accept_channel  -----|       |
         |       |                              |       |
-        |       |<-(3)-  blinding_selected  ---|       |
-        |       |--(4)-  commitment_created  ->|       |
+        |       |--(3)-  commitment_created  ->|       |
+        |       |<-(4)---  proof_created  -----|       |
         |       |                              |       |
-        |       |<-(5)---  proof_created  -----|       |
-        |   A   |--(6)--  funding_created  --->|   B   |
+        |   A   |--(5)--  funding_created  --->|   B   |
+        |       |<-(6)---  kernel_created  ----|       |
         |       |                              |       |
-        |       |<-(7)---  kernel_created  ----|       |
-        |       |--(8)---  kernel_signed  ---->|       |
-        |       |<-(9)-  funding_completed  ---|       |
+        |       |--(7)---  kernel_signed  ---->|       |
+        |       |<-(8)-  funding_completed  ---|       |
         |       |                              |       |
-        |       |--(10)-- funding_locked  ---->|       |
-        |       |<-(11)-- funding_locked  -----|       |
+        |       |--(9)--  funding_locked  ---->|       |
+        |       |<-(10)-- funding_locked  -----|       |
         +-------+                              +-------+
 
         - where node A is 'funder' and node B is 'fundee'
@@ -109,11 +107,6 @@ the funding transaction and both versions of the commitment transaction.
    * [`4`:`feerate_per_kw`]
    * [`2`:`to_self_delay`]
    * [`2`:`max_accepted_htlcs`]
-   * [`33`:`revocation_basepoint`]
-   * [`33`:`payment_basepoint`]
-   * [`33`:`delayed_payment_basepoint`]
-   * [`33`:`htlc_basepoint`]
-   * [`33`:`first_per_commitment_point`]
    * [`1`:`channel_flags`]
 
 The `chain_hash` value denotes the exact blockchain that the opened channel will
@@ -154,17 +147,6 @@ outputs must be delayed, using timelock delays; this
 is how long it will have to wait in case of breakdown before redeeming
 its own funds.
 
-The various `_basepoint` fields are used to derive unique
-keys as described in [BMW #3](03-transactions.md#key-derivation) for each commitment
-transaction. Varying these keys ensures that the transaction ID of
-each commitment transaction is unpredictable to an external observer,
-even if one commitment transaction is seen; this property is very
-useful for preserving privacy when outsourcing penalty transactions to
-third parties.
-
-`first_per_commitment_point` is the per-commitment point to be used
-for the first commitment transaction,
-
 Only the least-significant bit of `channel_flags` is currently
 defined: `announce_channel`. This indicates whether the initiator of
 the funding flow wishes to advertise this channel publicly to the
@@ -178,10 +160,6 @@ The sending node:
   - MUST ensure `temporary_channel_id` is unique from any other channel ID with
   the same peer.
   - MUST set `push_funds` to equal or less than 1000 * `funding`.
-  - MUST set `revocation_basepoint`, `htlc_basepoint`, `payment_basepoint`, and
-  `delayed_payment_basepoint` to valid DER-encoded, compressed, secp256k1 pubkeys.
-  - MUST set `first_per_commitment_point` to the per-commitment point to be used
-  for the initial commitment transaction, derived as specified in [BMW #3](03-transactions.md#per-commitment-secret-requirements).
   - MUST set `channel_reserve` greater than or equal to `dust_limit`.
   - MUST set undefined bits in `channel_flags` to 0.
 
@@ -219,8 +197,6 @@ The receiving node MUST fail the channel if:
   - `to_self_delay` is unreasonably large.
   - `max_accepted_htlcs` is greater than 483.
   - it considers `feerate_per_kw` too small for timely processing or unreasonably large.
-  - `revocation_basepoint`, `htlc_basepoint`, `payment_basepoint`, or `delayed_payment_basepoint`
-are not valid DER-encoded compressed secp256k1 pubkeys.
   - `dust_limit` is greater than `channel_reserve`.
   - the funder's amount for the initial commitment transaction is not sufficient
   for full [fee payment](03-transactions.md#fee-payment).
@@ -252,11 +228,6 @@ payment via on-chain confirmation.
 The `feerate_per_kw` is generally only of concern to the sender (who pays the
 fees), but there is also the fee rate paid by HTLC transactions; thus,
 unreasonably large fee rates can also penalize the recipient.
-
-Separating the `htlc_basepoint` from the `payment_basepoint` improves security:
-a node needs the secret associated with the `htlc_basepoint` to produce HTLC
-signatures for the protocol, but the secret for the `payment_basepoint` can be
-in cold storage.
 
 The requirement that `channel_reserve` is not considered dust
 according to `dust_limit_satoshis` eliminates cases where all outputs
@@ -291,6 +262,9 @@ This message contains information about a node and indicates its
 acceptance of the new channel. This is the second step toward creating the
 funding transaction and both versions of the commitment transaction.
 
+Most importantly it includes the blinding factor that the fundee has
+chosen.
+
 1. type: 33 (`accept_channel`)
 2. data:
    * [`32`:`temporary_channel_id`]
@@ -301,11 +275,8 @@ funding transaction and both versions of the commitment transaction.
    * [`4`:`minimum_depth`]
    * [`2`:`to_self_delay`]
    * [`2`:`max_accepted_htlcs`]
-   * [`33`:`revocation_basepoint`]
-   * [`33`:`payment_basepoint`]
-   * [`33`:`delayed_payment_basepoint`]
-   * [`33`:`htlc_basepoint`]
-   * [`33`:`first_per_commitment_point`]
+   * [`32`:`blinding_x_coordinate`]
+   * [`2`:`blinding_y_parity`]
 
 #### Requirements
 
@@ -319,6 +290,8 @@ avoid double-spending of the funding transaction.
   `open_channel` message.
   - MUST set `dust_limit` less than or equal to `channel_reserve` from the
   `open_channel` message.
+  - `blinding_x_coordinate` and `blinding_y_parity` must be the a generator point scaled by
+  blinding factor the fundee selected.
 
 The receiver:
   - if `minimum_depth` is unreasonably large:
@@ -328,31 +301,8 @@ The receiver:
   - if `channel_reserve` from the `open_channel` message is less than `dust_limit`:
 	- MUST reject the channel.
 Other fields have the same requirements as their counterparts in `open_channel`.
-
-
-### The `blinding_selected` Message
-
-This message sends the elliptic curve point that corresponds to the blinding factor
-that the fundee has chosen.
-
-1. type: XX (`blinding_selected`)
-2. data:
-    * [`32`:`temporary_channel_id`]
-    * [`32`:`x_coordinate`]
-    * [`2`:`y_parity`]
-
-#### Requirements
-
-The sender MUST set:
-  - `temporary_channel_id` the same as the `temporary_channel_id` in the
-  `open_channel` message.
-  - `x_coordinate` and `y_parity` must be the a generator point scaled by
-  blinding factor the fundee selected.
-
-The recipient:
   - if the x and y coordinates are not a valid curve point:
-    - MUST fail the channel.
-
+    - MUST reject the channel.
 
 ### The `commitment_created` Message
 
@@ -380,7 +330,7 @@ The recipient:
 
 ### The `proof_created` Message
 
-This message sends a proof for the funding amount created by the fundee back to
+This message sends a range proof for the funding amount created by the fundee back to
 the funder.
 
 1. type: XX (`proof_created`)
@@ -493,17 +443,12 @@ sent this, the channel enters normal operating mode.
 1. type: 36 (`funding_locked`)
 2. data:
     * [`32`:`channel_id`]
-    * [`33`:`next_per_commitment_point`]
 
 #### Requirements
 
 The sender MUST:
   - wait until the funding transaction has reached
 `minimum_depth` before sending this message.
-  - set `next_per_commitment_point` to the
-per-commitment point to be used for the following commitment
-transaction, derived as specified in
-[BMW #3](03-transactions.md#per-commitment-secret-requirements).
 
 A non-funding node (fundee):
   - SHOULD forget the channel if it does not see the
@@ -729,47 +674,6 @@ which she sends to the initiator as well as broadcasting it to the network.
 
 The sender MUST set:
   - `temporary_channel_id` the same as the `temporary_channel_id` in the `open_channel` message.
-
-
-### The `closing_complete` Message
-
-This message introduces the channel_id to identify the channel.
-
-FIXME: Decide how the channel_id should be derived
-
-This message indicates that the funding transaction has reached the
-`minimum_depth` asked for in `accept_channel`. Once both nodes have
-sent this, the channel enters normal operating mode.
-
-1. type: 36 (`funding_locked`)
-2. data:
-    * [`32`:`channel_id`]
-    * [`33`:`next_per_commitment_point`]
-
-#### Requirements
-
-The sender MUST:
-  - wait until the funding transaction has reached
-`minimum_depth` before sending this message.
-  - set `next_per_commitment_point` to the
-per-commitment point to be used for the following commitment
-transaction, derived as specified in
-[BMW #3](03-transactions.md#per-commitment-secret-requirements).
-
-A non-funding node (fundee):
-  - SHOULD forget the channel if it does not see the
-funding transaction after a reasonable timeout.
-
-From the point of waiting for `funding_locked` onward, either node MAY
-fail the channel if it does not receive a required response from the
-other node after a reasonable timeout.
-
-#### Rationale
-
-The non-funder can simply forget the channel ever existed, since no
-funds are at risk. If the fundee were to remember the channel forever, this
-would create a Denial of Service risk; therefore, forgetting it is recommended
-(even if the promise of `push_funds` is significant).
 
 
 ## Normal Operation
@@ -1483,9 +1387,9 @@ The sending node:
   next `revoke_and_ack` message it expects to receive.
   - if it supports `option_data_loss_protect`:
     - if `next_remote_revocation_number` equals 0:
-      - MUST set `your_last_per_commitment_secret` to all zeroes
+      - MUST set `your_last_commitment_secret` to all zeroes
     - otherwise:
-      - MUST set `your_last_per_commitment_secret` to the last `per_commitment_secret`
+      - MUST set `your_last_commitment_secret` to the last `commitment_secret`
     it received
 
 A node:
@@ -1520,13 +1424,13 @@ A node:
   - if it supports `option_data_loss_protect`, AND the `option_data_loss_protect`
   fields are present:
     - if `next_remote_revocation_number` is greater than expected above, AND
-    `your_last_per_commitment_secret` is correct for that
+    `your_last_commitment_secret` is correct for that
     `next_remote_revocation_number` minus 1:
       - MUST NOT broadcast its commitment transaction.
       - SHOULD fail the channel.
-      - SHOULD store `my_current_per_commitment_point` to retrieve funds
+      - SHOULD store `my_current_commitment_point` to retrieve funds
         should the sending node broadcast its commitment transaction on-chain.
-    - otherwise (`your_last_per_commitment_secret` or `my_current_per_commitment_point`
+    - otherwise (`your_last_commitment_secret` or `my_current_commitment_point`
     do not match the expected values):
       - SHOULD fail the channel.
 
@@ -1605,8 +1509,7 @@ revocation preimage. The error returned by the fallen-behind node
 (or simply the invalid numbers in the `channel_reestablish` it has
 sent) should make the other node drop its current commitment
 transaction to the chain. This will, at least, allow the fallen-behind node to recover
-non-HTLC funds, if the `my_current_per_commitment_point`
-is valid. However, this also means the fallen-behind node has revealed this
+non-HTLC funds. However, this also means the fallen-behind node has revealed this
 fact (though not provably: it could be lying), and the other node could use this to
 broadcast a previous state.
 

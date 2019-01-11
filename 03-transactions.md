@@ -23,8 +23,6 @@ transaction, the commitment transactions, and the HTLC transactions.
     * [Key Derivation](#key-derivation)
         * [`localpubkey`, `remotepubkey`, `local_htlcpubkey`, `remote_htlcpubkey`, `local_delayedpubkey`, and `remote_delayedpubkey` Derivation](#localpubkey-remotepubkey-local_htlcpubkey-remote_htlcpubkey-local_delayedpubkey-and-remote_delayedpubkey-derivation)
         * [`revocationpubkey` Derivation](#revocationpubkey-derivation)
-        * [Per-commitment Secret Requirements](#per-commitment-secret-requirements)
-    * [Efficient Per-commitment Secret Storage](#efficient-per-commitment-secret-storage)
   * [References](#references)
   * [Authors](#authors)
 
