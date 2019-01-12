@@ -40,10 +40,10 @@ In MimbleWimble the commitment transaction is actually a set of transactions
 that work together to achieve the same results as Bitcoin Lightning Network
 commitment transactions without the use of scripts.
 
-### Commitment Transaction Outputs
+### Commitment Transactions
 
 To allow an opportunity for penalty transactions, in case of a revoked
-commitment transaction, all outputs that return funds to the owner of the
+commitment transaction, all transactions that return funds to the owner of the
 commitment transaction (a.k.a. the "local node") must be delayed for
 `to_self_delay` blocks. This delay is done in a second-stage HTLC transaction
 (HTLC-success for HTLCs accepted by the local node, HTLC-timeout for HTLCs
@@ -59,11 +59,11 @@ amount, minus the fees for the HTLC transaction, is less than the
 `dust_limit_satoshis` set by the owner of the commitment transaction, the output
 MUST NOT be produced (thus the funds add to fees).
 
-#### `to_local` Output
+#### `to_local` Transaction
 
 This output it another 2-of-2 multisig output between the funder and the
 fundee and there are two transactions that could possibly spend this output
-when the `to_local` Output ends up on the blockchain:
+when the `to_local` transaction ends up on the blockchain:
 
 1. The transaction that sending the funds to the local participant. This
 transaction is timelocked to a certain maturity/sequence of the outputs it is
@@ -71,21 +71,21 @@ spending and only allows the local participant to redeem after the
 `to_self_delay` period has passed.
 2. The penalty transaction that allows the remote participant to take
 this output as well if the local participant tries to cheat by broadcasting
-an old state. This transaction can only be used with a revocation key
-(a hashlock).
+an old state. This transaction can only be used with a revocation hash
+preimage.
 
-#### `to_remote` Output
+#### `to_remote` Transaction
 
-This output sends funds to the other peer using the blinding factor that
+This transaction sends funds to the other peer using the blinding factor that
 the peer has added himself in the process.
 
 #### HTLC Outputs
 
-An offered HTLC outputs consists of three connected transactions: 1.
+An offered HTLC output consists of four connected transactions: 1.
 An adjusted commitment transaction that adds another 2-of-2 multisig
 that spends part of the amount of the participant who is offering
 the HTLC. The rest of the output to this participant is adjusted
-accordingly. The 2-of-2 output is the basis for the following two
+accordingly. The 2-of-2 output is the basis for the following three
 alternative transactions. 2. The HTLC timeout transaction allows the
 participant who offered the HTLC to take the funds back after a
 certain period. Until the period is expired the transaction can
@@ -93,6 +93,9 @@ not be submitted to the blockchain. 3. The HTLC Success transaction
 is the actual hashlocked transaction that allows the participant
 who got offered the HTLC to take the output of the 2-of-2 multisig
 if she can present the hash-preimage before it has expired.
+4. The revocation transaction that still allows the receiver of the
+HTLC offer to go on-chain in case the peer who offered the HTLC
+tries to use that HTLC on-chain after the state has changed.
 
 ### Trimmed Outputs
 
@@ -187,4 +190,3 @@ committed HTLCs:
 ![Creative Commons License](https://i.creativecommons.org/l/by/4.0/88x31.png "License CC-BY")
 <br>
 This work is licensed under a [Creative Commons Attribution 4.0 International License](http://creativecommons.org/licenses/by/4.0/).
-
