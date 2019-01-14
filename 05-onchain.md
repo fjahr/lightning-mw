@@ -81,21 +81,22 @@ trigger any action.
 # Commitment Transaction
 
 The local and remote nodes each hold a *commitment transaction*. Each of these
-commitment transactions has four types of outputs:
+commitment transactions has four types of outputs along with the transactions
+that may spend these outputs:
 
-1. _local node's main output_: Zero or one output, to pay to the *local node's*
-commitment pubkey.
-2. _remote node's main output_: Zero or one output, to pay to the *remote node's*
-commitment pubkey.
-3. _local node's offered HTLCs_: Zero or more pending payments (*HTLCs*), to pay
-the *remote node* in return for a payment preimage.
-4. _remote node's offered HTLCs_: Zero or more pending payments (*HTLCs*), to
-pay the *local node* in return for a payment preimage.
+1. _local node's main output_: Zero or one output, for a transaction to pay
+to a *local node's* blinding factor.
+2. _remote node's main output_: Zero or one output, for a transaction to pay
+to the *remote node's* blinding factor.
+3. _local node's offered HTLCs_: Zero or more pending payments (*HTLCs*), for
+a transaction to pay the *remote node* in return for a payment preimage.
+4. _remote node's offered HTLCs_: Zero or more pending payments (*HTLCs*), for
+a transaction to pay the *local node* in return for a payment preimage.
 
 To incentivize the local and remote nodes to cooperate, an
 relative timeout encumbers the *local node's outputs* (in the *local node's
-commitment transaction*) and the *remote node's outputs* (in the *remote node's
-commitment transaction*). So for example, if the local node publishes its
+commitment transactions*) and the *remote node's outputs* (in the *remote node's
+commitment transactions*). So for example, if the local node publishes its
 commitment transaction, it will have to wait to claim its own funds,
 whereas the remote node will have immediate access to its own funds. As a
 consequence, the two commitment transactions are not identical, but they are
@@ -172,16 +173,13 @@ noted below.
 
 A node:
   - upon discovering its *local commitment transaction*:
-    - SHOULD spend the `to_local` output to a convenient address.
     - MUST wait until the delay has passed (as
     specified by the remote node's `to_self_delay` field) before spending the
     output.
-      - Note: if the output is spent (as recommended), the output is *resolved*
-      by the spending transaction, otherwise it is considered *resolved* by the
-      commitment transaction itself.
-    - MAY ignore the `to_remote` output.
+    - MAY ignore the `to_remote` output/transaction.
       - Note: No action is required by the local node, as `to_remote` is
-      considered *resolved* by the commitment transaction itself.
+      considered *resolved* by the commitment transaction and the `to_remote`
+      spending transaction.
     - MUST handle HTLCs offered by itself as specified in
     [HTLC Output Handling: Local Commitment, Local Offers](#htlc-output-handling-local-commitment-local-offers).
     - MUST handle HTLCs offered by the remote node as
@@ -193,8 +191,8 @@ Spending the `to_local` output avoids having to remember the complicated
 witness script, associated with that particular channel, for later
 spending.
 
-The `to_remote` output is entirely the business of the remote node, and
-can be ignored.
+The `to_remote` output and transaction are entirely the business of the remote
+node, and can be ignored.
 
 ## HTLC Output Handling: Local Commitment, Local Offers
 
@@ -213,20 +211,13 @@ or greater than the HTLC `locktime_expiry`.
 
 A node:
   - if the commitment transaction HTLC output is spent using the payment
-  preimage, the output is considered *irrevocably resolved*:
-    - MUST extract the payment preimage from the transaction input witness.
+  preimage, the output is considered *irrevocably resolved*
   - if the commitment transaction HTLC output has *timed out* and hasn't been
   *resolved*:
     - MUST *resolve* the output by spending it using the HTLC-timeout
     transaction.
     - once the resolving transaction has reached reasonable depth:
       - MUST fail the corresponding incoming HTLC (if any).
-      - MUST resolve the output of that HTLC-timeout transaction.
-      - SHOULD resolve the HTLC-timeout transaction by spending it to a
-      convenient address.
-        - Note: if the output is spent (as recommended), the output is
-        *resolved* by the spending transaction, otherwise it is considered
-        *resolved* by the commitment transaction itself.
       - MUST wait until the delay has passed (as
       specified by the remote node's `open_channel` `to_self_delay` field)
       before spending that HTLC-timeout output.
@@ -299,8 +290,7 @@ A local node:
   - otherwise:
     - if the *remote node* is NOT irrevocably committed to the HTLC:
       - MUST NOT *resolve* the output by spending it.
-  - SHOULD resolve that HTLC-success transaction output by spending it to a
-  convenient address.
+  - SHOULD resolve that HTLC-success transaction output.
   - MUST wait until the delay has passed (as specified
     by the *remote node's* `open_channel`'s `to_self_delay` field), before
     spending that HTLC-success transaction output.
@@ -333,8 +323,6 @@ A local node:
         itself.
       - MAY take no action in regard to the associated `to_local`, which is a
       payment output to the *remote node*.
-        - Note: `to_local` is considered *resolved* by the commitment transaction
-        itself.
       - MUST handle HTLCs offered by itself as specified in
       [HTLC Output Handling: Remote Commitment, Local Offers](#htlc-output-handling-remote-commitment-local-offers)
       - MUST handle HTLCs offered by the remote node as specified in
@@ -371,12 +359,11 @@ because the outputs were trimmed as dust or because the remote node has two
 A local node:
   - if the commitment transaction HTLC output is spent using the payment
   preimage:
-    - MUST extract the payment preimage from the HTLC-success transaction input
-    witness.
+    - MUST extract the payment preimage from the HTLC-success transaction.
       - Note: the output is considered *irrevocably resolved*.
   - if the commitment transaction HTLC output has *timed out* AND NOT been
   *resolved*:
-    - MUST *resolve* the output, by spending it to a convenient address.
+    - MUST *resolve* the output.
   - for any committed HTLC that does NOT have an output in this commitment
   transaction:
     - once the commitment transaction has reached reasonable depth:
@@ -471,26 +458,22 @@ Once a node discovers a commitment transaction for which *it* has a
 revocation private key, the funding transaction output is *resolved*.
 
 A local node:
-  - MUST NOT broadcast a commitment transaction for which *it* has exposed the
-  `per_commitment_secret`.
   - MAY take no action regarding the _local node's main output_.
     - Note: this output is considered *resolved* by the commitment transaction
       itself.
   - MUST *resolve* the _remote node's main output_ by spending it using the
-  revocation private key.
+  revocation transaction with the revocation hash.
   - MUST *resolve* the _local node's offered HTLCs_ in one of three ways:
-    * spend the *commitment tx* using the payment revocation private key.
+    * spend the *commitment tx* using the payment revocation hash.
     * spend the *commitment tx* using the payment preimage (if known).
     * spend the *HTLC-timeout tx*, if the remote node has published it.
   - MUST *resolve* the _remote node's offered HTLCs_ in one of two ways:
-    * spend the *commitment tx* using the payment revocation key.
+    * spend the *commitment tx* using the payment revocation hash.
     * spend the *commitment tx* once the HTLC timeout has passed.
   - MUST *resolve* the _remote node's HTLC-timeout transaction_ by spending it
-  using the revocation private key.
+  using the revocation hash.
   - MUST *resolve* the _remote node's HTLC-success transaction_ by spending it
-  using the revocation private key.
-  - SHOULD extract the payment preimage from the transaction input witness, if
-  it's not already known.
+  using the revocation hash.
   - MAY use a single transaction to *resolve* all the outputs.
   - MUST handle its transactions being invalidated by HTLC transactions.
 
@@ -505,44 +488,7 @@ refuses to broadcast the HTLC-timeout and HTLC-success transactions in a timely
 manner. Although, the requirement of persistence until all outputs are
 irrevocably resolved, should still protect against this happening. [ FIXME: May have to divide and conquer here, since the remote node may be able to delay the local node long enough to avoid a successful penalty spend? ]
 
-## Penalty Transactions Weight Calculation
-
-There are three different scripts for penalty transactions, with the following
-witness weights (details of weight computation are in
-[Appendix A](#appendix-a-expected-weights)):
-
-    to_local_penalty_witness: 160 bytes
-    offered_htlc_penalty_witness: 243 bytes
-    accepted_htlc_penalty_witness: 249 bytes
-
-The penalty *txinput* itself takes up 41 bytes and has a weight of 164 bytes,
-which results in the following weights for each input:
-
-    to_local_penalty_input_weight: 324 bytes
-    offered_htlc_penalty_input_weight: 407 bytes
-    accepted_htlc_penalty_input_weight: 413 bytes
-
-The rest of the penalty transaction takes up 4+1+1+8+1+34+4=53 bytes of
-non-witness data: assuming it has a pay-to-witness-script-hash (the largest
-standard output script), in addition to a 2-byte witness header.
-
-In addition to spending these outputs, a penalty transaction may optionally
-spend the commitment transaction's `to_remote` output (e.g. to reduce the total
-amount paid in fees).
-
-In the worst case scenario, the node holds only incoming HTLCs, and the
-HTLC-timeout transactions are not published, which forces the node to spend from
-the commitment transaction.
-
-With a maximum standard weight of 400000 bytes, the maximum number of HTLCs that
-can be swept in a single transaction is as follows:
-
-    max_num_htlcs = (400000 - 324 - 272 - (4 * 53) - 2) / 413 = 966
-
-Thus, 483 bidirectional HTLCs (containing both `to_local` and
-`to_remote` outputs) can be resolved in a single penalty transaction.
-Note: even if the `to_remote` output is not swept, the resulting
-`max_num_htlcs` is 967; which yields the same unidirectional limit of 483 HTLCs.
+[ FIXME: Do we need calculations for max weights of revocation transaction? ]
 
 # General Requirements
 
