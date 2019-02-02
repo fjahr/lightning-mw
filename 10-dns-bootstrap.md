@@ -27,7 +27,6 @@ The subdomains consist of a number of dot-separated _conditions_ that further na
   * [Policies](#policies)
   * [Examples](#examples)
   * [References](#references)
-  * [Authors](#authors)
 
 ## DNS Seed Queries
 

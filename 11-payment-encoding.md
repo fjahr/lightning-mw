@@ -11,7 +11,7 @@ over Lightning.
     * [Tagged Fields](#tagged-fields)
   * [Payer / Payee Interactions](#payer--payee-interactions)
     * [Payer / Payee Requirements](#payer--payee-requirements)
-  * [Implementation](#implementation)
+  * [Implementation for Bitcoin](#implementation-for-bitcoin)
   * [Examples](#examples)
 
 # Encoding Overview

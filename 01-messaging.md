@@ -21,9 +21,7 @@ All data fields are unsigned big-endian unless otherwise specified.
     * [The `error` Message](#the-error-message)
   * [Control Messages](#control-messages)
     * [The `ping` and `pong` Messages](#the-ping-and-pong-messages)
-  * [Acknowledgments](#acknowledgments)
   * [References](#references)
-  * [Authors](#authors)
 
 ## Connection Handling and Multiplexing
 

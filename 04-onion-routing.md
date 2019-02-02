@@ -46,6 +46,7 @@ A node:
 # Table of Contents
 
   * [Conventions](#conventions)
+  * [Clarifications](#clarifications)
   * [Key Generation](#key-generation)
   * [Pseudo Random Byte Stream](#pseudo-random-byte-stream)
   * [Packet Structure](#packet-structure)
@@ -67,7 +68,6 @@ A node:
       * [Final Packet](#final-packet)
     * [Returning Errors](#returning-errors)
   * [References](#references)
-  * [Authors](#authors)
 
 # Conventions
 

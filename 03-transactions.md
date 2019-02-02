@@ -7,24 +7,18 @@ transaction, the commitment transactions, and the HTLC transactions.
 # Table of Contents
 
   * [Transactions](#transactions)
+    * [Funding Transaction](#funding-transaction)
     * [Commitment Transaction](#commitment-transaction)
-        * [Commitment Transaction Outputs](#commitment-transaction-outputs)
-          * [`to_local` Output](#to_local-output)
-          * [`to_remote` Output](#to_remote-output)
-          * [Offered HTLC Outputs](#offered-htlc-outputs)
-          * [Received HTLC Outputs](#received-htlc-outputs)
+        * [Commitment Transactions](#commitment-transactions)
+          * [`to_local` Transaction](#to_local-transaction)
+          * [`to_remote` Transaction](#to_remote-transaction)
+          * [HTLC Outputs](#htlc-outputs)
         * [Trimmed Outputs](#trimmed-outputs)
-    * [HTLC-timeout and HTLC-success Transactions](#htlc-timeout-and-htlc-success-transactions)
-	* [Closing Transaction](#closing-transaction)
     * [Fees](#fees)
         * [Fee Calculation](#fee-calculation)
         * [Fee Payment](#fee-payment)
-  * [Keys](#keys)
-    * [Key Derivation](#key-derivation)
-        * [`localpubkey`, `remotepubkey`, `local_htlcpubkey`, `remote_htlcpubkey`, `local_delayedpubkey`, and `remote_delayedpubkey` Derivation](#localpubkey-remotepubkey-local_htlcpubkey-remote_htlcpubkey-local_delayedpubkey-and-remote_delayedpubkey-derivation)
-        * [`revocationpubkey` Derivation](#revocationpubkey-derivation)
+  * [Commitment Transaction Construction](#commitment-transaction-construction)
   * [References](#references)
-  * [Authors](#authors)
 
 # Transactions
 

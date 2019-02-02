@@ -38,7 +38,7 @@ encounters any of the above situations, on-chain.
       * [HTLC Output Handling: Remote Commitment, Local Offers](#htlc-output-handling-remote-commitment-local-offers)
       * [HTLC Output Handling: Remote Commitment, Remote Offers](#htlc-output-handling-remote-commitment-remote-offers)
   * [Revoked Transaction Close Handling](#revoked-transaction-close-handling)
-	  * [Penalty Transactions Weight Calculation](#penalty-transactions-weight-calculation)
+  * [General Requirements](#general-requirements)
 
 # General Nomenclature
 
